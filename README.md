@@ -128,7 +128,7 @@ These commands use **Bash**; run `bash` first if your terminal uses another shel
 <a id="meet-byte"></a>
 ## 🎾 Meet Byte
 
-Choose a friend from **Care**, available on the hover bar or right-click menu. Byte is selected on existing installations, and your original `pet.json` stays intact. Each friend’s needs continue to advance with elapsed time when you return to them.
+Choose a friend from **Care**, available on the hover bar or right-click menu. See the [companion guide](docs/COMPANIONS.md) for their care routines. Byte is selected on existing installations, and your original `pet.json` stays intact. Each friend’s needs continue to advance with elapsed time when you return to them.
 
 | Companion | Food & treat | Hydration / refresh | Play & gentle activity | Rest |
 | --- | --- | --- | --- | --- |
