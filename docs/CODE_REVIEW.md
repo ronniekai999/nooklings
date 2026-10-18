@@ -1,5 +1,43 @@
 # Nooklings review and validation
 
+## Roadmap implementation — October 18, 2026
+
+The companion review's four P2 findings are fixed:
+
+| Finding | Behavior now |
+| --- | --- |
+| Source launches lost Byte preferences after the executable rename | All preference consumers use `com.ronnie.byte`; a scoped, one-time migration imports old process domains without overwriting existing values or resurrecting removed selections. |
+| A damaged current pet save blocked every companion switch | The original remains protected, unsavable care is explained, and healthy companions can be selected and saved independently. |
+| The primary interactive sprite was hidden from VoiceOver | The root sprite is no longer globally hidden. The pet has a named chat action, status, Open care action, focus, and Return/Space activation. Decorative selector art remains hidden. |
+| Joy depended on tick frequency | The simulation integrates the moving needs target across sleep, caps, and floors; offline and frequent updates agree. |
+
+The next roadmap batch implements:
+
+- A configurable Carbon global shortcut, default **⌃⌥Space**, with registration
+  conflict feedback. It opens and refocuses chat without reading other apps,
+  clearing drafts, or requiring Accessibility permission.
+- A visible conservative context estimate, blocked-send draft retention, reviewed
+  local summaries with full-thread archival, Claude output/search limits, and a
+  persistent daily spending guard. Provider billing remains authoritative.
+- Paginated Claude availability checks, shared capabilities and limits, corrected
+  and dated prices including cache tiers, and explicit unknown/stale pricing.
+  ChatGPT's narrower request contract and account catalog are preserved.
+- A file picker, bounded worker-task image preparation, missing-image recovery,
+  and cleanup that preserves all potentially referenced files if any record is
+  unreadable. Recovery uses new sidecars so existing archives stay intact.
+- Independent display constraints, a resizable panel, larger transcript text,
+  user-scroll-aware streaming, and expanded accessibility labels/actions.
+- Universal release bundles and a manual signing/notarization workflow with stable
+  identity, temporary credentials, hardened runtime, stapling, and Gatekeeper checks.
+
+Native verification is recorded with the final pull-request check. Automated tests
+use mocked providers and isolated credential stores. Real sign-in, hardware display
+changes, VoiceOver, Login Items, and signed Keychain upgrades still require the
+[installed-app matrix](ACCESSIBILITY.md). Apple credentials have not been supplied;
+the [distribution workflow](DISTRIBUTION.md) is prepared, not a completed notarized
+release. See [Models and limits](MODELS_AND_LIMITS.md) for cost assumptions and the
+official provider references checked on October 18.
+
 ## Nooklings update — October 18, 2026
 
 The app is now Nooklings, with Byte the T-Rex, Ripple the dolphin, Biscuit the dog,
@@ -7,7 +45,7 @@ Miso the cat, and Bao the panda. Each animal has its own care profile, save file
 expressions, props, and play/rest animations. The original Byte save location,
 bundle identity, preference keys, and Keychain services remain in use for upgrades.
 
-The [native macOS check](https://github.com/ronniekai999/byte/actions/runs/39100486937)
+The [native macOS check](https://github.com/ronniekai999/nooklings/actions/runs/39100486937)
 passes **68 tests**, release bundling, app metadata, icon generation, and verification
 of all five bundled artwork atlases. Tests cover elapsed care and rest, per-animal
 persistence, damaged saves, cancellation and duplicate completion, the 30 expression
@@ -15,8 +53,7 @@ frames, and native light/dark care renders, alongside the existing AI/auth suite
 The README uses portraits and dashboard pictures exported by the app's renderer.
 
 Live animation timing, sound, notch interactions, provider sign-in, real Keychain
-prompts, and Login Items still require a hands-on Mac pass. Repository renaming to
-`nooklings` is an administrative step; the current GitHub URL remains `byte`.
+prompts, and Login Items still require a hands-on Mac pass. The repository has also been renamed to `nooklings`; old GitHub links redirect.
 
 Earlier review entries below refer to the app by its former name, Byte.
 
@@ -43,7 +80,7 @@ host-ID reuse, rotating refresh tokens, subscription request parameters, live
 catalog selection, completed/interrupted streaming, and usage-limit handling.
 The initial 47 native regression tests, debug build, release bundle, and plist
 validation passed on macOS 14 with Swift 5.10 in the
-[PR workflow](https://github.com/ronniekai999/byte/actions/runs/38078991885).
+[PR workflow](https://github.com/ronniekai999/nooklings/actions/runs/38078991885).
 Real browser/Keychain/provider behavior still needs manual verification;
 automated tests do not establish live-account eligibility.
 
@@ -78,7 +115,7 @@ mock HTTP and storage; they do not validate macOS UI or real Keychain/OAuth beha
 
 ## Readiness review — October 10, 2026
 
-The follow-up review in [PR #3](https://github.com/ronniekai999/byte/pull/3)
+The follow-up review in [PR #3](https://github.com/ronniekai999/nooklings/pull/3)
 addressed four further P2 recovery issues:
 
 | Trigger | Problem | Fix |
@@ -92,7 +129,7 @@ Four new native regression tests cover refresh/sign-out ordering, failed sign-ou
 followed by catalog retry, a complete loopback sign-in with signed ID-token
 verification and expired-code recovery, and bounded retries after repeated invalid
 codes. All **51 tests**, the debug build, release bundle, and plist validation
-passed in the [macOS workflow](https://github.com/ronniekai999/byte/actions/runs/38094130147).
+passed in the [macOS workflow](https://github.com/ronniekai999/nooklings/actions/runs/38094130147).
 A separate mock-network harness reproduced the refresh cancellation bug against
 the original auth code and passed against the fix. Neither test setup uses live
 provider credentials or the user's Keychain.
@@ -142,6 +179,13 @@ running app has not had a visual or accessibility audit in this workspace.
 
 ## Next improvements
 
+Items 1–3 and 5–7 below now have source implementations and regression coverage;
+the corresponding real-account and installed-app checks remain as noted above.
+Item 4 has a prepared workflow and awaits Apple credentials and upgrade validation.
+Item 8 is partly addressed through extracted helpers; streaming and conversation
+persistence can be separated further. The original acceptance criteria are retained
+here for review.
+
 | Order | Improvement | Benefit and acceptance criterion |
 | --- | --- | --- |
 | 1 | Global shortcut | Open and focus chat across apps/spaces without aiming at the sprite. Make it configurable and capture context only on user action. |
@@ -168,13 +212,13 @@ include respecting `Retry-After` and server-tool continuation signals.
   new send, cancellation during backoff, citations, HTTP 401, and the ChatGPT
   connection and recovery cases described above.
 - Native macOS compilation, all tests, release bundling, and plist validation
-  passed in the [readiness workflow](https://github.com/ronniekai999/byte/actions/runs/38094130147)
+  passed in the [readiness workflow](https://github.com/ronniekai999/nooklings/actions/runs/38094130147)
   on macOS 14.8.9/arm64 with Apple Swift 5.10. Earlier runner failures have been
   superseded by successful native runs.
 - Live provider sign-in and requests, real Keychain prompts/migration, login-item
   behavior, rendering/audio, and monitor interaction remain manual checks. Tests
   stub networking and key storage and incur no API charges.
 
-The cost meter is approximate: cache-token price tiers and usage lost during a
-disconnect are not fully represented. Model IDs and list prices need provider
-verification before public distribution.
+The historical cost limitations above are partly superseded: cache-token tiers and
+dated list prices are now represented, and availability is checked at runtime.
+Usage lost during a disconnect remains an estimation limit; see MODELS_AND_LIMITS.md.

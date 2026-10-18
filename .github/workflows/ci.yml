@@ -38,7 +38,7 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' Nooklings.app/Contents/Info.plist)" = com.ronnie.byte
           test -x Nooklings.app/Contents/MacOS/Nooklings
           test -s Nooklings.app/Contents/Resources/Nooklings.icns
-          lipo -verify_arch arm64 x86_64 Nooklings.app/Contents/MacOS/Nooklings
+          lipo Nooklings.app/Contents/MacOS/Nooklings -verify_arch arm64 x86_64
           bash -n scripts/release.sh
       - name: Verify bundled companion artwork
         run: |

@@ -16,6 +16,11 @@ Updated: October 18, 2026
 
 ## Code review improvements
 
+- [x] Migrate source-launch preferences into the stable bundle suite
+- [x] Allow switching away from a protected damaged pet save
+- [x] Restore the primary pet VoiceOver action and keyboard activation
+- [x] Integrate joy consistently across offline intervals, sleep, and need floors
+
 - [x] Unique archives, explicit save errors, and write-failure recovery
 - [x] Save prompts before requests and checkpoint interrupted replies
 - [x] Preserve corrupt history before replacing it
@@ -29,23 +34,29 @@ Updated: October 18, 2026
 
 ## Next
 
-- [ ] Rename the GitHub repository from `byte` to `nooklings` (requires repository settings access)
+- [x] Rename the GitHub repository from `byte` to `nooklings`
 - [x] ChatGPT plan sign-in for the local app, live account model catalog, and provider switching
 - [ ] Validate ChatGPT browser sign-in, Keychain, refresh, and streaming on macOS
 - [ ] Obtain Anthropic approval before adding Claude subscription sign-in
-- [ ] Global shortcut to open and focus chat
-- [ ] Context budget, optional thread summary, and cost controls
-- [ ] Check model availability; maintain capabilities and pricing together
-- [ ] Developer ID signing, notarization, and repeatable distribution
+- [x] Configurable global shortcut to open and focus chat without capturing context
+- [x] Context budget, reviewed local summary, Claude output/search caps, and a persistent daily spending estimate guard
+- [x] Check Claude model availability; share capabilities, limits, dated prices, and unknown/stale-price handling
+- [x] Prepare universal builds and a repeatable Developer ID/notarization workflow
+- [ ] Add Apple credentials, produce the first signed release, and verify installed-app upgrades/Keychain identity
 
 ## Following
 
-- [ ] Image picker, missing-image recovery, and safe sidecar cleanup
-- [ ] Per-display drag constraints and monitor-change testing
-- [ ] Resizable chat panel and broader reduced-motion / VoiceOver validation
-- [ ] Separate networking, persistence, pet simulation, and views
-- [ ] Report login-item errors and handle requiresApproval consistently
+- [x] Image picker, background downsampling, missing-image recovery, and conservative sidecar cleanup
+- [x] Per-display visible-frame constraints and geometry tests for separated/small/unplugged displays
+- [ ] Validate real monitor changes and full-screen Spaces on installed macOS
+- [x] Resizable chat panel, larger transcript text, reading-position preservation, and keyboard/VoiceOver actions
+- [ ] Complete the installed-app Reduce Motion / VoiceOver matrix in docs/ACCESSIBILITY.md
+- [x] Extract preferences, shortcut registration, geometry, model metadata, limits, and attachment helpers
+- [ ] Continue separating streaming and conversation persistence from ByteModel
+- [x] Report login-item errors and handle requiresApproval consistently
 - [ ] Test provider retry/continuation behavior and supported toolchains
 
 See docs/CODE_REVIEW.md for evidence, validation limits, and acceptance criteria.
-Existing model IDs were retained and need a live Anthropic availability check.
+Live account availability is checked in the app; CI uses provider mocks. See
+docs/MODELS_AND_LIMITS.md for the dated pricing reference and API restrictions, and
+docs/DISTRIBUTION.md for signing setup and upgrade acceptance criteria.

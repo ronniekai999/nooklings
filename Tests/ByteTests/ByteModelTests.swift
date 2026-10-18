@@ -100,6 +100,33 @@ private struct Fixture {
 
 final class ByteModelTests: XCTestCase {
     @MainActor
+    func testLocateMissingImageSavesFreshSidecarAndPreservesArchiveReference() async throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        let originalID = UUID().uuidString
+        let turn = ByteModel.Turn(role: .user, text: "See picture", imageId: originalID, imageType: "image/jpeg")
+        let record = try JSONEncoder().encode([turn])
+        try record.write(to: f.root.appendingPathComponent("history.json"))
+        let archive = f.root.appendingPathComponent("archives/chat-original.json")
+        try FileManager.default.createDirectory(at: archive.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try record.write(to: archive)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 8, pixelsHigh: 8,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        let image = f.root.appendingPathComponent("replacement.png")
+        try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: image)
+        let loaded = f.reloaded()
+        loaded.attachImage(url: image, replacing: turn.id)
+        let deadline = Date().addingTimeInterval(5)
+        while loaded.isPreparingImage && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertFalse(loaded.isPreparingImage)
+        XCTAssertFalse(loaded.turns[0].imageMissing)
+        XCTAssertNotNil(loaded.turns[0].imageB64)
+        XCTAssertNotEqual(loaded.turns[0].imageId, originalID)
+        XCTAssertFalse(f.reloaded().turns[0].imageMissing)
+        XCTAssertEqual(try Data(contentsOf: archive), record)
+    }
+
+    @MainActor
     func testMissingAttachmentIsVisibleBlocksSendingAndCanBeRemovedPersistently() throws {
         let f = try Fixture(); defer { f.cleanup() }
         let turn = ByteModel.Turn(role: .user, text: "Describe this", imageId: UUID().uuidString, imageType: "image/jpeg")

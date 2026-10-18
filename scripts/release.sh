@@ -33,7 +33,7 @@ if [[ "$ACTUAL_TEAM" != "$APPLE_TEAM_ID" ]]; then
   exit 1
 fi
 codesign -d -r- "$APP" 2> "$OUT/designated-requirement.txt"
-lipo -verify_arch arm64 x86_64 "$APP/Contents/MacOS/Nooklings"
+lipo "$APP/Contents/MacOS/Nooklings" -verify_arch arm64 x86_64
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 
 if ! xcrun notarytool submit "$ZIP" "${NOTARY_ARGS[@]}" --wait --timeout 20m \

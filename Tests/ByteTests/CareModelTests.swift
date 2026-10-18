@@ -32,7 +32,46 @@ private struct CareFixture {
     }
 }
 
+@MainActor
+private struct ChatPreview: View {
+    @ObservedObject var model: ByteModel
+    @FocusState private var focused: Bool
+    var body: some View { ChatPanel(model: model, focused: $focused, accent: .green).padding(16) }
+}
+
 final class CareModelTests: XCTestCase {
+    @MainActor
+    func testChatControlsRenderAtCompactAndExpandedSizes() throws {
+        _ = NSApplication.shared
+        let f = try CareFixture(); defer { f.clean() }
+        let model = f.model()
+        model.hasKey = true
+        model.turns = [.init(role: .user, text: "Help me plan a calm afternoon."),
+                       .init(role: .byte, text: "Start with one small task, take a walk, then leave a little room for yourself. I’ll keep you company. 🦖")]
+        for wide in [false, true] {
+            let size = NSSize(width: wide ? 640 : 360, height: wide ? 620 : 440)
+            let view = ChatPreview(model: model).environment(\.colorScheme, wide ? .light : .dark)
+                .background(wide ? Color(white: 0.95) : Color(white: 0.12))
+            let host = NSHostingView(rootView: view)
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = host
+            window.orderFront(nil)
+            host.layoutSubtreeIfNeeded()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+            XCTAssertGreaterThan(data.count, 1000)
+            if let directory = ProcessInfo.processInfo.environment["NOOKLINGS_SNAPSHOT_DIRECTORY"] {
+                let url = URL(fileURLWithPath: directory)
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                try data.write(to: url.appendingPathComponent(wide ? "chat-expanded-light.png" : "chat-compact-dark.png"))
+            }
+            window.orderOut(nil)
+        }
+    }
+
     @MainActor
     func testShortcutOpensAndRefocusesWithoutTogglingOrReadingContext() throws {
         let f = try CareFixture(); defer { f.clean() }

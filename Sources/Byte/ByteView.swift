@@ -726,7 +726,7 @@ struct ChatPanel: View {
         HStack(spacing: 8) {
             Text(model.companion.name).font(.system(size: 11, weight: .semibold, design: .rounded))
             Spacer()
-            Text(model.model).font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
+            Text(model.model).font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             Button { showSettings.toggle() } label: { Image(systemName: "gearshape") }
                 .buttonStyle(.plain).foregroundStyle(.secondary)
                 .help("Settings")
@@ -768,7 +768,7 @@ struct ChatPanel: View {
                 VStack(alignment: .leading, spacing: 8) {
                     if model.turns.isEmpty {
                         Text("Ask me anything — I'll keep it short, and I'll remember the thread 🦖")
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.system(size: 14, design: .rounded))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -830,14 +830,14 @@ struct ChatPanel: View {
                         }
                         if !turn.text.isEmpty {
                             Text(turn.text)
-                                .font(.system(size: 12, design: .rounded))
+                                .font(.system(size: 14, design: .rounded))
                                 .foregroundStyle(.white)
                                 .textSelection(.enabled)
                         }
                     }
                 } else if showThinking {
                     Text("\(statusLabel)\(dots)")
-                        .font(.system(size: 12, design: .rounded))
+                        .font(.system(size: 14, design: .rounded))
                         .foregroundStyle(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
@@ -887,7 +887,7 @@ struct ChatPanel: View {
             .disabled(model.isStreaming)
             TextField("Ask \(model.companion.name)…", text: $model.draft)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12, design: .rounded))
+                .font(.system(size: 14, design: .rounded))
                 .focused(focused)
                 .onSubmit { model.send() }
                 .disabled(model.isStreaming)
@@ -1035,7 +1035,7 @@ struct MarkdownText: View {
         switch block {
         case .paragraph(let s):
             Text(inline(s))
-                .font(.system(size: 12, design: .rounded))
+                .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(.primary)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1050,9 +1050,9 @@ struct MarkdownText: View {
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(items.indices, id: \.self) { i in
                     HStack(alignment: .top, spacing: 6) {
-                        Text("•").font(.system(size: 12, design: .rounded)).foregroundStyle(.secondary)
+                        Text("•").font(.system(size: 14, design: .rounded)).foregroundStyle(.secondary)
                         Text(inline(items[i]))
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.system(size: 14, design: .rounded))
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -1062,9 +1062,9 @@ struct MarkdownText: View {
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(items.indices, id: \.self) { i in
                     HStack(alignment: .top, spacing: 6) {
-                        Text("\(i + 1).").font(.system(size: 12, design: .rounded)).foregroundStyle(.secondary)
+                        Text("\(i + 1).").font(.system(size: 14, design: .rounded)).foregroundStyle(.secondary)
                         Text(inline(items[i]))
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.system(size: 14, design: .rounded))
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
