@@ -27,6 +27,9 @@ jobs:
           NOOKLINGS_SNAPSHOT_DIRECTORY: ${{ github.workspace }}/.artifacts/companion-previews
         run: swift test
       - name: Build release app bundle
+        env:
+          UNIVERSAL: '1'
+          BUILD_NUMBER: ${{ github.run_number }}
         run: ./bundle.sh
       - name: Validate bundle metadata
         run: |
@@ -35,6 +38,8 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' Nooklings.app/Contents/Info.plist)" = com.ronnie.byte
           test -x Nooklings.app/Contents/MacOS/Nooklings
           test -s Nooklings.app/Contents/Resources/Nooklings.icns
+          lipo -verify_arch arm64 x86_64 Nooklings.app/Contents/MacOS/Nooklings
+          bash -n scripts/release.sh
       - name: Verify bundled companion artwork
         run: |
           for animal in trex dolphin dog cat panda; do

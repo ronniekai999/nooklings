@@ -8,10 +8,20 @@ BUNDLE_ID="com.ronnie.byte"
 BIN="Nooklings"
 APP_DIR="${APP_NAME}.app"
 ICON_SOURCE="docs/assets/nooklings-icon.png"
+APP_VERSION="${APP_VERSION:-1.1.0}"
+BUILD_NUMBER="${BUILD_NUMBER:-1}"
+if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || [[ ! "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+  echo "APP_VERSION must be numeric major.minor[.patch]; BUILD_NUMBER must be an integer." >&2
+  exit 1
+fi
+BUILD_ARGS=(-c release)
+if [[ "${UNIVERSAL:-0}" == 1 ]]; then
+  BUILD_ARGS+=(--arch arm64 --arch x86_64)
+fi
 
 echo "> Building release binary..."
-swift build -c release
-BUILD_DIR="$(swift build -c release --show-bin-path)"
+swift build "${BUILD_ARGS[@]}"
+BUILD_DIR="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)"
 
 echo "> Assembling ${APP_DIR} ..."
 rm -rf "${APP_DIR}"
@@ -58,8 +68,8 @@ cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>${APP_NAME}</string>
 ${ICON_KEY}
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>${APP_VERSION}</string>
+  <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
@@ -73,8 +83,5 @@ echo "   Next:"
 echo "   1. mv \"${APP_DIR}\" /Applications/"
 echo "   2. Launch ${APP_NAME}, click the gear, toggle 'Launch at login'"
 echo "      (or add it manually: System Settings -> General -> Login Items)"
-echo "   (Unsigned, so on first launch: right-click ${APP_NAME} -> Open, or run"
-echo "    'xattr -dr com.apple.quarantine /Applications/${APP_DIR}')"
-echo ""
-echo "   If the icon doesn't refresh in Finder/Dock, run:"
-echo "   touch \"/Applications/${APP_DIR}\" && killall Finder Dock"
+echo "   This development bundle is unsigned. Follow Finder's Open prompts if needed."
+echo "   For signed distribution, see docs/DISTRIBUTION.md and scripts/release.sh."

@@ -204,7 +204,7 @@ struct ByteView: View {
                 .accessibilityValue(model.pet.status)
                 .accessibilityAction(named: Text("Open care")) { showCare = true }
                 .focusable()
-                .onKeyPress(keys: [.return, .space]) { model.toggleChat(); return .handled }
+                .onKeyPress(keys: [.return, .space]) { _ in model.toggleChat(); return .handled }
 
             if let action = careScene {
                 PropSprite(prop: .object(for: action, companion: model.companion), size: 30)

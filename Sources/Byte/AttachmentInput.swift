@@ -9,9 +9,9 @@ enum AttachmentInput {
         picker.canChooseDirectories = false
         picker.allowsMultipleSelection = false
         picker.prompt = turnID == nil ? "Attach image" : "Use this image"
-        picker.begin { [weak model] response in
+        picker.begin { [model] response in
             guard response == .OK, let url = picker.url else { return }
-            Task { @MainActor in model?.attachImage(url: url, replacing: turnID) }
+            Task { @MainActor [weak model] in model?.attachImage(url: url, replacing: turnID) }
         }
     }
 
@@ -26,15 +26,15 @@ enum AttachmentInput {
     static func load(_ providers: [NSItemProvider], into model: ByteModel) -> Bool {
         guard let provider = providers.first else { return false }
         if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            _ = provider.loadObject(ofClass: NSURL.self) { [weak model] value, _ in
+            _ = provider.loadObject(ofClass: NSURL.self) { [model] value, _ in
                 guard let url = value as? URL else { return }
-                Task { @MainActor in model?.attachImage(url: url) }
+                Task { @MainActor [weak model] in model?.attachImage(url: url) }
             }
             return true
         }
         guard let type = provider.registeredTypeIdentifiers.first(where: { UTType($0)?.conforms(to: .image) == true }) else { return false }
-        provider.loadDataRepresentation(forTypeIdentifier: type) { [weak model] data, error in
-            Task { @MainActor in
+        provider.loadDataRepresentation(forTypeIdentifier: type) { [model] data, error in
+            Task { @MainActor [weak model] in
                 if let data { model?.attachImage(data: data) }
                 else { model?.attachmentError = error?.localizedDescription ?? "Couldn't read the dropped image." }
             }
