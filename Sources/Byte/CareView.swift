@@ -78,6 +78,7 @@ struct CareView: View {
                     Button { _ = model.selectCompanion(companion) } label: {
                         VStack(spacing: 3) {
                             ByteSprite(scale: 0.36, companion: companion)
+                                .accessibilityHidden(true)
                                 .frame(height: 43)
                             Text(companion.name).font(.system(size: 10, weight: .semibold))
                             Circle().fill(companion == model.companion ? accent : .clear).frame(width: 4, height: 4)

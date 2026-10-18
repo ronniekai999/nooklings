@@ -105,6 +105,25 @@ final class PetCareTests: XCTestCase {
         XCTAssertEqual(once.energy, often.energy, accuracy: 0.001)
         XCTAssertEqual(once.hunger, often.hunger, accuracy: 0.001)
         XCTAssertEqual(once.thirst, often.thirst, accuracy: 0.001)
+        XCTAssertEqual(once.happiness, often.happiness, accuracy: 0.001)
+    }
+
+    func testJoyIsIndependentOfTicksAcrossNeedFloorsAndSleepCaps() {
+        for companion in Companion.allCases {
+            for sleeping in [false, true] {
+                var once = PetState(now: start)
+                once.hunger = 8; once.thirst = 18; once.energy = 94; once.happiness = 40
+                if sleeping { once.perform(.rest, companion: companion, at: start) }
+                var often = once
+                once.advance(to: start.addingTimeInterval(48 * 3600), companion: companion)
+                for minute in 1...(48 * 60) {
+                    often.advance(to: start.addingTimeInterval(Double(minute) * 60), companion: companion)
+                }
+                XCTAssertEqual(once.happiness, often.happiness, accuracy: 0.000001, companion.name)
+                XCTAssertEqual(once.energy, often.energy, accuracy: 0.000001)
+                XCTAssertEqual(once.status, often.status)
+            }
+        }
     }
 
     func testCareHistoryIsBoundedAndPersists() throws {

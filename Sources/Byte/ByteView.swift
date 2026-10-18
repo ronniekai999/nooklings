@@ -19,7 +19,7 @@ struct ByteView: View {
     @State private var isBusy = false
     @State private var lastMove = -1
     @State private var showHappy = false
-    @AppStorage("byte.sounds") private var soundsOn = true
+    @AppStorage("byte.sounds", store: AppPreferences.shared) private var soundsOn = true
     @State private var rippleScale: CGFloat = 0.2
     @State private var rippleOpacity: Double = 0
 
@@ -186,6 +186,7 @@ struct ByteView: View {
                     Button("Quit Nooklings") { NSApp.terminate(nil) }
                 }
                 .help("Hover for actions · click to chat · drag to move")
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel(model.companion.name)
                 .accessibilityHint("Opens or closes chat")
                 .accessibilityAddTraits(.isButton)
@@ -1227,12 +1228,12 @@ struct ConnectionView: View {
 @MainActor
 struct SettingsView: View {
     @ObservedObject var byte: ByteModel
-    @AppStorage("byte.webSearch") private var webSearch = true
-    @AppStorage("byte.sounds") private var sounds = true
-    @AppStorage("byte.checkins") private var checkins = true
-    @AppStorage("byte.puns") private var puns = 2
-    @AppStorage("byte.model") private var model = "claude-sonnet-4-6"
-    @AppStorage("byte.effort") private var effort = "high"
+    @AppStorage("byte.webSearch", store: AppPreferences.shared) private var webSearch = true
+    @AppStorage("byte.sounds", store: AppPreferences.shared) private var sounds = true
+    @AppStorage("byte.checkins", store: AppPreferences.shared) private var checkins = true
+    @AppStorage("byte.puns", store: AppPreferences.shared) private var puns = 2
+    @AppStorage("byte.model", store: AppPreferences.shared) private var model = "claude-sonnet-4-6"
+    @AppStorage("byte.effort", store: AppPreferences.shared) private var effort = "high"
     @State private var loginStatus = SMAppService.mainApp.status
     @State private var loginError: String?
 

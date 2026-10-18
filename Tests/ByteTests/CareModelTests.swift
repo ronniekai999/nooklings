@@ -162,4 +162,25 @@ final class CareModelTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: file), bad)
         XCTAssertNotNil(model.storageError)
     }
+
+    @MainActor
+    func testCorruptCurrentSaveAllowsHealthyCompanionAndFuturePersistence() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let bad = Data("keep this damaged save".utf8)
+        let file = f.root.appendingPathComponent("pet.json")
+        try bad.write(to: file)
+        let model = f.model()
+        XCTAssertNil(model.beginCare(.meal), "Don't pretend to save care on a protected file")
+        XCTAssertTrue(model.selectCompanion(.cat))
+        model.pet.hunger = 20
+        model.completeCare(try XCTUnwrap(model.beginCare(.meal)))
+        model.prepareForTermination()
+        XCTAssertEqual(try Data(contentsOf: file), bad)
+        let reloaded = f.model()
+        XCTAssertEqual(reloaded.companion, .cat)
+        XCTAssertEqual(reloaded.pet.hunger, model.pet.hunger)
+        XCTAssertEqual(reloaded.pet.careCount, 1)
+        XCTAssertFalse(reloaded.selectCompanion(.trex))
+        XCTAssertEqual(reloaded.companion, .cat)
+    }
 }

@@ -95,7 +95,7 @@ final class ByteModel: ObservableObject {
     private var connectionTask: Task<Void, Never>?
     private var catalogTask: Task<Void, Never>?
 
-    init(configDirectory: URL? = nil, defaults: UserDefaults = .standard,
+    init(configDirectory: URL? = nil, defaults: UserDefaults = AppPreferences.shared,
          keyStore: any APIKeyStoring = KeychainAPIKeyStore(),
          chatGPTStore: any APIKeyStoring = KeychainAPIKeyStore(service: "com.ronnie.byte.chatgpt", account: "accounts"),
          chatGPTCredentialLock: ChatGPTCredentialLock = ChatGPTCredentialLock(),
@@ -194,8 +194,10 @@ final class ByteModel: ObservableObject {
         guard activeCare == nil, !isStreaming else { return false }
         do {
             let saved = try readPet(for: next)
-            guard persistPet(force: true) else { return false }
+            // A protected damaged save must not trap the user on that companion.
+            guard petPersistenceBlocked || persistPet(force: true) else { return false }
             companion = next; pet = saved
+            petPersistenceBlocked = false
             defaults.set(next.rawValue, forKey: "byte.companion")
             careFeedback = "Hello, \(next.name). \(next.personality)"
             lastPetSave = .distantPast
@@ -227,6 +229,10 @@ final class ByteModel: ObservableObject {
     /// One reservation shared by the hover bar, dashboard and keyboard actions.
     func beginCare(_ action: CareAction) -> UUID? {
         guard activeCare == nil else { return nil }
+        guard !petPersistenceBlocked else {
+            careFeedback = "This care history needs recovery. Choose another companion while the original file is preserved."
+            return nil
+        }
         // Settle needs without firing a greeting/trick into the care animation.
         pet.advance(to: now(), companion: companion)
         if let reason = pet.unavailableReason(for: action, companion: companion) {

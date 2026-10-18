@@ -119,7 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Top-center anchor: the user's pinned point if set, else the notch.
     private func anchorPoint() -> (CGFloat, CGFloat) {
-        let d = UserDefaults.standard
+        let d = AppPreferences.shared
         if d.bool(forKey: pinnedKey),
            d.object(forKey: pinXKey) != nil, d.object(forKey: pinTopYKey) != nil {
             return (CGFloat(d.double(forKey: pinXKey)), CGFloat(d.double(forKey: pinTopYKey)))
@@ -151,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func dragEnded() {
         let f = window.frame
-        let d = UserDefaults.standard
+        let d = AppPreferences.shared
         d.set(true, forKey: pinnedKey)
         d.set(Double(f.midX), forKey: pinXKey)
         d.set(Double(f.maxY), forKey: pinTopYKey)
@@ -159,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Forget the pinned spot and snap back under the notch.
     func resetPosition() {
-        let d = UserDefaults.standard
+        let d = AppPreferences.shared
         d.set(false, forKey: pinnedKey)
         d.removeObject(forKey: pinXKey)
         d.removeObject(forKey: pinTopYKey)

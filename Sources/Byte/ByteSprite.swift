@@ -25,7 +25,6 @@ struct ByteSprite: View {
             }
         }
         .frame(width: 160 * scale, height: 116 * scale)
-        .accessibilityHidden(true)
     }
 }
 
