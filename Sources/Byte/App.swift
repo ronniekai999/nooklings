@@ -71,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self?.window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
         }
+        if model.hasKey { model.reloadAnthropicModels() }
         model.shortcut.start { [weak self] in self?.model.openAndFocusChat() }
         model.onResizeChat = { [weak self] delta in self?.resizeChat(by: delta) }
 

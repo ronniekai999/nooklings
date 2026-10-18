@@ -115,6 +115,9 @@ struct ByteView: View {
         .onChange(of: model.companion) { _, _ in
             quip = nil; showHappy = false; secondsToNext = 12
         }
+        .onChange(of: model.provider) { _, provider in
+            if provider == .anthropic, model.hasKey, model.anthropicModelsCheckedAt == nil { model.reloadAnthropicModels() }
+        }
         .onChange(of: model.chatOpen) { _, open in
             guard open else { return }
             Task { @MainActor in
@@ -670,6 +673,7 @@ struct ChatPanel: View {
             if model.hasConnection {
                 transcript
                 if model.pendingImage != nil { pendingImageChip }
+                ContextControls(model: model)
                 inputBar
                 if model.provider == .chatGPT {
                     HStack {
@@ -934,7 +938,7 @@ struct ChatPanel: View {
         let toks = model.sessionInTok + model.sessionOutTok
         return HStack(spacing: 4) {
             if model.provider == .anthropic {
-                Text("≈ \(costString(model.sessionCost))")
+                Text(model.sessionCostIncomplete ? "Cost incomplete" : "≈ \(costString(model.sessionCost))")
                 Text("·").foregroundStyle(.tertiary)
             }
             Text("\(tokString(toks)) tokens")
@@ -1265,8 +1269,6 @@ struct SettingsView: View {
     @AppStorage("byte.sounds", store: AppPreferences.shared) private var sounds = true
     @AppStorage("byte.checkins", store: AppPreferences.shared) private var checkins = true
     @AppStorage("byte.puns", store: AppPreferences.shared) private var puns = 2
-    @AppStorage("byte.model", store: AppPreferences.shared) private var model = "claude-sonnet-4-6"
-    @AppStorage("byte.effort", store: AppPreferences.shared) private var effort = "high"
     @State private var loginStatus = SMAppService.mainApp.status
     @State private var loginError: String?
 
@@ -1288,6 +1290,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 12) {
             Text("Nooklings settings")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -1295,7 +1298,7 @@ struct SettingsView: View {
             ConnectionView(model: byte)
             Divider()
 
-            Toggle("Web search", isOn: $webSearch)
+            Toggle("Web search", isOn: $webSearch).disabled(!byte.supportsWebSearch || byte.isStreaming)
             Toggle("Sound effects", isOn: $sounds)
             Toggle("Random check-ins", isOn: $checkins)
             ShortcutSettings(shortcut: byte.shortcut)
@@ -1328,29 +1331,15 @@ struct SettingsView: View {
                 Button("Refresh models") { byte.reloadChatGPTModels() }
                     .disabled(byte.isStreaming || byte.isLoadingModels || !byte.chatGPT.canUsePlan)
             } else {
-                Picker("Model", selection: $model) {
-                    Text("Sonnet 4.6").tag("claude-sonnet-4-6")
-                    Text("Opus 4.8").tag("claude-opus-4-8")
-                    Text("Haiku 4.5").tag("claude-haiku-4-5-20251001")
-                }
+                ClaudeModelSettings(model: byte)
             }
-            Picker("Effort", selection: $effort) {
-                Text("Low").tag("low")
-                Text("Medium").tag("medium")
-                Text("High").tag("high")
-            }
-            .disabled(byte.provider == .chatGPT || !AnthropicRequestConfiguration.supportsAdaptiveThinking(model))
-
-            Text(byte.provider == .chatGPT ? "Your account determines available models and capabilities. Changes apply to the next message."
-                 : AnthropicRequestConfiguration.supportsAdaptiveThinking(model)
-                 ? "Changes apply to your next message."
-                 : "Haiku uses standard generation. Effort applies to Sonnet and Opus.")
-                .font(.system(size: 10, design: .rounded))
-                .foregroundStyle(.secondary)
+            Divider()
+            LimitSettings(limits: byte.limits, isClaude: byte.provider == .anthropic, spent: byte.dailyEstimatedCost)
         }
         .font(.system(size: 12, design: .rounded))
         .padding(14)
-        .frame(width: 300)
+        }
+        .frame(width: 340, height: 580)
         .onAppear { loginStatus = SMAppService.mainApp.status }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loginStatus = SMAppService.mainApp.status

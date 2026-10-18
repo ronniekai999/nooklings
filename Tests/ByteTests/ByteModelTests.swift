@@ -100,6 +100,79 @@ private struct Fixture {
 
 final class ByteModelTests: XCTestCase {
     @MainActor
+    func testContextAndSpendGuardsKeepDraftAndNeverSendBlockedRequests() throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        StubURLProtocol.handler = { _ in XCTFail("Blocked sends must not use the network") }
+        f.model.limits.contextTokens = 4000
+        f.model.turns = [.init(role: .user, text: String(repeating: "long context ", count: 1000))]
+        f.model.draft = "Keep this question"
+        f.model.send()
+        XCTAssertEqual(f.model.turns.count, 1)
+        XCTAssertEqual(f.model.draft, "Keep this question")
+        XCTAssertTrue(f.model.sendNotice?.contains("context limit") == true)
+        f.model.turns = []
+        f.model.limits.dailyDollars = 0.001
+        f.model.send()
+        XCTAssertTrue(f.model.turns.isEmpty)
+        XCTAssertTrue(f.model.sendNotice?.contains("spending guard") == true)
+        XCTAssertFalse(f.model.isStreaming)
+    }
+
+    @MainActor
+    func testSummaryArchivesOriginalAndPreservesUnsentDraft() throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        f.model.turns = [.init(role: .user, text: "Original request"), .init(role: .byte, text: "Original reply")]
+        f.model.draft = "Follow-up"
+        XCTAssertTrue(f.model.startChatWithSummary("Keep the decision"))
+        XCTAssertEqual(f.model.turns.count, 1)
+        XCTAssertTrue(f.model.turns[0].text.contains("Keep the decision"))
+        XCTAssertEqual(f.model.draft, "Follow-up")
+        let archive = try XCTUnwrap(f.model.archiveList().first)
+        XCTAssertEqual(archive.count, 2)
+        XCTAssertTrue(f.model.reopenArchive(id: archive.id))
+        XCTAssertEqual(f.model.turns.map(\.text), ["Original request", "Original reply"])
+    }
+
+    @MainActor
+    func testSummaryFailureRetainsFullThread() throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        f.model.turns = [.init(role: .user, text: "Do not lose this")]
+        try Data("not a directory".utf8).write(to: f.root.appendingPathComponent("archives"))
+        XCTAssertFalse(f.model.startChatWithSummary("Shorter"))
+        XCTAssertEqual(f.model.turns.first?.text, "Do not lose this")
+        XCTAssertNotNil(f.model.storageError)
+    }
+
+    @MainActor
+    func testAnthropicDiscoveryPaginatesExcludesRetiredAndDoesNotChangeSavedModel() async throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        var requests = 0
+        StubURLProtocol.handler = { stub in
+            requests += 1
+            XCTAssertEqual(stub.request.value(forHTTPHeaderField: "x-api-key"), "test-key")
+            if requests == 1 {
+                stub.reply(#"{"data":[{"id":"retired","display_name":"Retired","lifecycle":"retired"}],"has_more":true,"last_id":"retired"}"#)
+            } else {
+                XCTAssertTrue(stub.request.url?.query?.contains("after_id=retired") == true)
+                stub.reply(#"{"data":[{"id":"available","display_name":"Available","capabilities":{"image_input":{"supported":false}}}],"has_more":false}"#)
+            }
+        }
+        f.model.reloadAnthropicModels()
+        let deadline = Date().addingTimeInterval(5)
+        while f.model.isLoadingAnthropicModels && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertFalse(f.model.isLoadingAnthropicModels)
+        XCTAssertEqual(requests, 2)
+        XCTAssertEqual(f.model.anthropicModels.map(\.id), ["available"])
+        XCTAssertEqual(f.model.model, "claude-sonnet-4-6")
+        XCTAssertFalse(f.model.canSend, "Do not silently switch models or billing")
+        f.model.selectAnthropicModel("available")
+        XCTAssertTrue(f.model.canSend)
+        XCTAssertTrue(f.model.pricingStatus.contains("unknown"))
+        f.model.limits.dailyDollars = 10
+        XCTAssertNotNil(f.model.sendBlockReason)
+    }
+
+    @MainActor
     private func waitForFinish(_ model: ByteModel) async throws {
         let deadline = Date().addingTimeInterval(5)
         while model.isStreaming && Date() < deadline {

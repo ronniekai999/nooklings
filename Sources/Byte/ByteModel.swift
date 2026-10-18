@@ -55,6 +55,16 @@ final class ByteModel: ObservableObject {
     @Published var chatOpen = false
     @Published private(set) var focusRequest = UUID()
     let shortcut: GlobalShortcut
+    let limits: ChatLimits
+    private let spendLedger: SpendLedger
+    private var limitsObservation: AnyCancellable?
+    @Published private(set) var anthropicModels: [ModelMetadata] = []
+    @Published private(set) var anthropicModelsCheckedAt: Date?
+    @Published private(set) var isLoadingAnthropicModels = false
+    @Published var modelCatalogError: String?
+    @Published var sendNotice: String?
+    @Published private(set) var sessionCostIncomplete = false
+    private var anthropicCatalogTask: Task<Void, Never>?
     @Published var draft = ""
     @Published var turns: [Turn] = []
     @Published var isThinking = false      // waiting on the first text token (or retrying)
@@ -108,6 +118,8 @@ final class ByteModel: ObservableObject {
             (NSHomeDirectory() as NSString).appendingPathComponent(".config/byte"))
         self.defaults = defaults
         self.shortcut = GlobalShortcut(defaults: defaults)
+        self.limits = ChatLimits(defaults: defaults)
+        self.spendLedger = SpendLedger(defaults: defaults)
         self.keyStore = keyStore
         self.session = session
         self.environment = environment
@@ -122,6 +134,7 @@ final class ByteModel: ObservableObject {
         loadHistory()
         refreshHasArchive()
         loadPet()
+        limitsObservation = limits.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         authObservation = chatGPT.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         if provider == .chatGPT, chatGPT.canUsePlan { reloadChatGPTModels() }
     }
@@ -289,15 +302,6 @@ final class ByteModel: ObservableObject {
         }
     }
 
-    // Approximate public list prices (USD per 1M tokens). Edit if Anthropic's change;
-    // this meter is a rough estimate, not exact billing.
-    private static let pricing: [String: (input: Double, output: Double)] = [
-        "claude-sonnet-4-6": (3, 15),
-        "claude-opus-4-8": (15, 75),
-        "claude-haiku-4-5-20251001": (1, 5),
-    ]
-    private static let webSearchPer1000 = 10.0
-
     /// Read live from Settings (defaults: Sonnet 4.6, high effort, web search on,
     /// lots of puns). Computed so changes in the settings popover take effect on the
     /// next message without restarting Byte.
@@ -306,8 +310,81 @@ final class ByteModel: ObservableObject {
             : (defaults.string(forKey: "byte.model") ?? "claude-sonnet-4-6")
     }
     var hasConnection: Bool { provider == .anthropic ? hasKey : chatGPT.canUsePlan }
+    var selectedModel: ModelMetadata {
+        anthropicModels.first { $0.id == model } ?? ModelCatalog.metadata(for: model)
+    }
+    var effectiveOutputCap: Int { min(limits.outputCap, selectedModel.maxOutputTokens ?? limits.outputCap) }
+    var effectiveContextCap: Int {
+        min(limits.inputCap, max(1000, (provider == .anthropic ? selectedModel.maxInputTokens : nil) ?? 160_000) - effectiveOutputCap)
+    }
+    var contextEstimate: Int {
+        ChatContext.estimate(turns: turns, draft: draft, pendingImage: pendingImageB64 != nil, system: datedSystemPrompt())
+    }
+    var dailyEstimatedCost: Double { spendLedger.amount(at: now()) }
+    var pricingStatus: String {
+        if selectedModel.price == nil { return "Price unknown — no dollar estimate for this model." }
+        if ModelCatalog.pricesAreStale(at: now()) { return "Prices are stale. Update Nooklings before using the spending guard." }
+        let p = selectedModel.price!
+        return String(format: "$%g input / $%g output per million tokens · checked %@", p.input, p.output, ModelCatalog.verifiedOn)
+    }
+    var sendBlockReason: String? {
+        if contextEstimate > effectiveContextCap {
+            return "This thread exceeds your context limit. Start a new chat or review a summary to continue. Your draft is kept."
+        }
+        if provider == .anthropic, conversationHasImage, !selectedModel.capabilities.images {
+            return "Image support isn't verified for this model. Choose an image-capable model or start a text-only chat."
+        }
+        if provider == .anthropic {
+            return spendingBlockReason(inputTokens: contextEstimate, requestedModel: model,
+                outputTokens: effectiveOutputCap, searches: webSearchOn ? limits.searchCap : 0)
+        }
+        return nil
+    }
+    private func spendingBlockReason(inputTokens: Int, requestedModel: String, outputTokens: Int, searches: Int) -> String? {
+        guard limits.budget > 0 else { return nil }
+        guard let price = ModelCatalog.metadata(for: requestedModel).price,
+              !ModelCatalog.pricesAreStale(at: now()), !spendLedger.isIncomplete(at: now()) else {
+            return "The daily spending guard needs current, complete price estimates. Choose a model with known prices or adjust the guard in Settings."
+        }
+        // Include a reserve for search-result tokens; this still isn't a billing guarantee.
+        let projected = price.cost(AnthropicUsage(inputTokens: inputTokens + searches * 8192,
+                                                 outputTokens: outputTokens, searches: searches))
+        if dailyEstimatedCost + projected > limits.budget {
+            return "This reply could exceed your daily API spending guard. Lower output/search limits or adjust the budget in Settings."
+        }
+        return nil
+    }
+
+    func selectAnthropicModel(_ id: String) {
+        guard !isStreaming, anthropicModels.contains(where: { $0.id == id }) else { return }
+        objectWillChange.send()
+        defaults.set(id, forKey: "byte.model")
+        sendNotice = nil
+    }
+
+    func reloadAnthropicModels() {
+        guard !isStreaming, let key = apiKey() else { return }
+        anthropicCatalogTask?.cancel()
+        isLoadingAnthropicModels = true; modelCatalogError = nil
+        anthropicCatalogTask = Task {
+            do {
+                let choices = try await ModelCatalog.discover(key: key, session: session)
+                try Task.checkCancellation()
+                anthropicModels = choices
+                anthropicModelsCheckedAt = now()
+                if !choices.contains(where: { $0.id == model }) {
+                    modelCatalogError = "Your saved model isn't available. Choose a model returned by your API key."
+                }
+            } catch is CancellationError { return }
+            catch {
+                guard !Task.isCancelled else { return }
+                modelCatalogError = error.localizedDescription
+            }
+            if !Task.isCancelled { isLoadingAnthropicModels = false }
+        }
+    }
     var canSend: Bool {
-        !isConnecting && hasConnection && (provider == .anthropic ||
+        !isConnecting && hasConnection && (provider != .anthropic || (!isLoadingAnthropicModels && (anthropicModelsCheckedAt == nil || anthropicModels.contains { $0.id == model }))) && (provider == .anthropic ||
             (!chatGPTUsageBlocked && chatGPTModels.contains { $0.slug == model }))
     }
 
@@ -411,7 +488,8 @@ final class ByteModel: ObservableObject {
         }
     }
     private var effort: String { defaults.string(forKey: "byte.effort") ?? "high" }
-    private var webSearchOn: Bool { (defaults.object(forKey: "byte.webSearch") as? Bool) ?? true }
+    var supportsWebSearch: Bool { provider == .chatGPT || selectedModel.capabilities.webSearch }
+    private var webSearchOn: Bool { ((defaults.object(forKey: "byte.webSearch") as? Bool) ?? true) && supportsWebSearch && (provider == .chatGPT || limits.searchCap > 0) }
     private var punLevel: Int { (defaults.object(forKey: "byte.puns") as? Int) ?? 2 }
 
     private var systemPrompt: String {
@@ -488,6 +566,26 @@ final class ByteModel: ObservableObject {
         draft = ""
         clearPendingImage()
         persist()
+    }
+
+    var summaryDraft: String { ChatContext.summaryDraft(turns: turns) }
+
+    @discardableResult
+    func startChatWithSummary(_ summary: String) -> Bool {
+        let text = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isStreaming, !text.isEmpty else { return false }
+        let seed = Turn(role: .user, text: "Conversation summary, reviewed by me:\n\(text)")
+        guard ChatContext.estimate(turns: [seed], draft: draft, pendingImage: pendingImageB64 != nil,
+                                   system: datedSystemPrompt()) <= effectiveContextCap else {
+            sendNotice = "Shorten the summary or draft to fit your context limit."; return false
+        }
+        do { try archiveCurrent() }
+        catch { storageError = "Couldn't archive the full thread. \(error.localizedDescription)"; return false }
+        let previous = turns
+        turns = [seed]
+        guard persist() else { turns = previous; return false }
+        sendNotice = nil
+        return true
     }
 
     private var archivesDir: String {
@@ -599,11 +697,11 @@ final class ByteModel: ObservableObject {
     }
 
     private func commitUsage(_ usage: AnthropicUsage, model requestedModel: String) {
-        let rate = Self.pricing[requestedModel] ?? (input: 3, output: 15)
-        sessionCost += Double(usage.inputTokens) / 1_000_000 * rate.input
-                     + Double(usage.outputTokens) / 1_000_000 * rate.output
-                     + Double(usage.searches) / 1000 * Self.webSearchPer1000
-        sessionInTok += usage.inputTokens
+        let price = ModelCatalog.metadata(for: requestedModel).price
+        let cost = ModelCatalog.pricesAreStale(at: now()) ? nil : price?.cost(usage)
+        if let cost { sessionCost += cost } else { sessionCostIncomplete = true }
+        spendLedger.record(cost, at: now())
+        sessionInTok += usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens
         sessionOutTok += usage.outputTokens
         sessionSearches += usage.searches
     }
@@ -699,6 +797,8 @@ final class ByteModel: ObservableObject {
     func send() {
         let prompt = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isStreaming, canSend, !prompt.isEmpty || pendingImageB64 != nil else { return }
+        if let problem = sendBlockReason { sendNotice = problem; return }
+        sendNotice = nil
         draft = ""
         turns.append(Turn(role: .user, text: prompt,
                           imageType: pendingImageType,
@@ -727,7 +827,8 @@ final class ByteModel: ObservableObject {
             }
         } else {
             let configuration = AnthropicRequestConfiguration(
-                model: model, effort: effort, webSearch: webSearchOn, system: datedSystemPrompt())
+                model: model, effort: effort, webSearch: webSearchOn, system: datedSystemPrompt(),
+                maxOutputTokens: effectiveOutputCap, maxSearches: limits.searchCap, capabilities: selectedModel.capabilities)
             streamTask = Task {
                 await stream(requestID: requestID, responseID: responseID, configuration: configuration)
             }
@@ -838,6 +939,8 @@ final class ByteModel: ObservableObject {
             do { try FileManager.default.removeItem(at: legacyKeyURL) }
             catch { storageError = "Your key is in Keychain, but the old key file couldn't be removed. \(error.localizedDescription)" }
         }
+        resetAnthropicCatalog()
+        reloadAnthropicModels()
     }
 
     func signOut() {
@@ -856,6 +959,7 @@ final class ByteModel: ObservableObject {
             }
             return
         }
+        resetAnthropicCatalog()
         do {
             try keyStore.remove()
             if FileManager.default.fileExists(atPath: legacyKeyURL.path) {
@@ -869,10 +973,17 @@ final class ByteModel: ObservableObject {
         hasKey = (apiKey() != nil) // an environment key remains available
     }
 
+    private func resetAnthropicCatalog() {
+        anthropicCatalogTask?.cancel(); anthropicCatalogTask = nil
+        isLoadingAnthropicModels = false; anthropicModels = []; anthropicModelsCheckedAt = nil
+        modelCatalogError = nil
+    }
+
     func prepareForTermination() {
         stopResponse()
         cancelChatGPTSignIn()
         catalogTask?.cancel()
+        anthropicCatalogTask?.cancel()
         persist()
         persistPet(force: true)
     }
@@ -951,6 +1062,10 @@ final class ByteModel: ObservableObject {
         let maxAttempts = 4
         for attempt in 1...maxAttempts {
             guard isCurrent(requestID) else { return }
+            if attempt > 1, let problem = spendingBlockReason(inputTokens: contextEstimate, requestedModel: configuration.model,
+                                                              outputTokens: configuration.maxOutputTokens, searches: configuration.webSearch ? configuration.maxSearches : 0) {
+                finish(requestID: requestID, responseID: responseID, failure: problem); return
+            }
             let result = await runOnce(request: request, requestID: requestID, responseID: responseID)
             commitUsage(result.usage, model: configuration.model)
             guard isCurrent(requestID) else { return }
