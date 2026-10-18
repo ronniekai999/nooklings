@@ -47,8 +47,19 @@ enum CompanionArtwork {
             let w = atlas.width / 3, h = atlas.height / 2
             result[companion] = ByteSprite.Mood.allCases.compactMap { mood in
                 // Discard the empty top/bottom gutter, keeping all poses on the same canvas.
+                // The second row's generated poses sit slightly higher. Match the
+                // standing baseline so expressions don't jump during a bite or sip.
+                let lowerRowInset: Int
+                switch companion {
+                case .trex: lowerRowInset = 9
+                case .dolphin: lowerRowInset = -7
+                case .dog: lowerRowInset = -7
+                case .cat: lowerRowInset = 18
+                case .panda: lowerRowInset = 10
+                }
+                let row = mood.rawValue / 3
                 let rect = CGRect(x: (mood.rawValue % 3) * w,
-                                  y: (mood.rawValue / 3) * h + 40,
+                                  y: row * h + (row == 0 ? 40 : lowerRowInset),
                                   width: w, height: h - 70)
                 return atlas.cropping(to: rect)
             }

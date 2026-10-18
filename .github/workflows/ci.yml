@@ -23,8 +23,22 @@ jobs:
       - name: Build app
         run: swift build
       - name: Run regression tests
+        env:
+          BYTE_SNAPSHOT_DIRECTORY: ${{ github.workspace }}/.artifacts/companion-previews
         run: swift test
       - name: Build release app bundle
         run: ./bundle.sh
       - name: Validate bundle metadata
         run: plutil -lint Byte.app/Contents/Info.plist
+      - name: Verify bundled companion artwork
+        run: |
+          for animal in trex dolphin dog cat panda; do
+            test -f "Byte.app/Contents/Resources/Byte_Byte.bundle/Companions/${animal}.png"
+          done
+      - name: Upload native companion previews
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: companion-previews
+          path: .artifacts/companion-previews/
+          if-no-files-found: error
+          retention-days: 7

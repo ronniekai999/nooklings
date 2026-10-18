@@ -20,7 +20,7 @@
 
 ---
 
-Byte is a native macOS companion with two sides: a pixel-art T-rex who needs a snack, a drink, and a little attention; and a compact Claude or ChatGPT panel for everyday questions, images, and web research. He lives just below the notch, reacts while he thinks, and remembers where you leave him.
+Byte is a native macOS companion app with five lifelike friends to choose from, each with their own food, hydration, play, and rest routines. They live just below the notch, react while thinking, and remember where you leave them. A compact Claude or ChatGPT panel handles everyday questions, images, and web research.
 
 Click to chat. Hover to care. Drag to make yourself at home.
 
@@ -33,9 +33,9 @@ Click to chat. Hover to care. Drag to make yourself at home.
 
 ### 🦖 A desktop companion with a personality
 
-- **Pixel-art T-rex** with happy, neutral, and thinking expressions, idle movement, and little tricks: stomps, rolls, wiggles, and greetings.
-- **A pet care loop** with hunger, thirst, energy, and happiness. Feed him, give him water, play, or let him rest; needs and pet age persist between launches.
-- **Animated care scenes** with tiny props and optional synthesized stomp sounds.
+- **Five lifelike companions** with neutral, happy, thinking, eating, drinking, and sleeping expressions. Byte’s existing tricks, smiles, wiggles, and greetings remain, with distinct care movements for each animal.
+- **A modern care dashboard** with fullness, hydration (freshness for Ripple), energy, joy, suggested actions, and recent moments. Each companion keeps separate needs, age, care history, and rest progress.
+- **Species-specific care** with two foods, two play activities, water or splash refreshes, affection, and timed naps. Smooth props and quiet synthesized cues replace the pixel objects. Reduce Motion keeps care functional with static expressions.
 - **Optional check-ins** and adjustable puns, from off to lots.
 - **A home under the notch**, or wherever you drag him. His pinned position is remembered; a right-click resets it.
 
@@ -104,7 +104,7 @@ From the repository directory:
 open Byte.app
 ```
 
-The script builds the release executable and assembles `Byte.app` with its icon and macOS bundle metadata. Move the app into **Applications** for everyday use, then enable **Launch at login** in Byte's Settings if desired.
+The script builds the release executable and assembles `Byte.app` with its icon, all companion artwork, and macOS bundle metadata. Move the app into **Applications** for everyday use, then enable **Launch at login** in Byte's Settings if desired.
 
 This is a locally built, **unsigned** bundle. If macOS asks for confirmation, use Finder's **Open** action and follow the system prompts. Developer ID signing and notarized distribution are on the [roadmap](#roadmap).
 
@@ -128,11 +128,26 @@ These commands use **Bash**; run `bash` first if your terminal uses another shel
 <a id="meet-byte"></a>
 ## 🎾 Meet Byte
 
+Choose a friend from **Care**, available on the hover bar or right-click menu. Byte is selected on existing installations, and your original `pet.json` stays intact. Each friend’s needs continue to advance with elapsed time when you return to them.
+
+| Companion | Food & treat | Hydration / refresh | Play & gentle activity | Rest |
+| --- | --- | --- | --- | --- |
+| **Byte · T-Rex** | Prime bites · turkey morsels | Watering hole | Stomp chase · scent trail | 5-minute nest nap |
+| **Ripple · dolphin** | Fish school · squid snack | Splash refresh for skin freshness; fish also restores moisture | Hoop dive · bubble chase | 4-minute quiet drift |
+| **Biscuit · dog** | Dinner bowl · crunchy biscuit | Refilled water bowl | Fetch · sniff safari | 5-minute cozy nap |
+| **Miso · cat** | Salmon supper · chicken nibbles | Fresh drinking fountain | Feather pounce · sunbeam chase | 3-minute catnap |
+| **Bao · panda** | Bamboo buffet · apple slices | Forest spring | Bamboo roll · leaf puzzle | 6-minute bamboo snooze |
+
+Food and water replenish needs up to 100%; play uses energy. Hungry, thirsty, or exhausted friends ask for care before energetic games. Rest recovers energy over time, including while the app is closed; **Wake gently** keeps only the energy already recovered. These are playful virtual-pet routines. Care works locally and never requires AI credits.
+
+The quick controls and dashboard run the same animations and award care once at the action’s payoff. Switching companions is paused during care or a streaming reply. The chat persona changes with your friend; the conversation and AI connection stay shared across the app.
+
+
 | Action | What happens |
 | --- | --- |
 | **Click Byte** | Open or close chat |
-| **Hover over Byte** | Reveal quick feed, water, and play controls |
-| **Open the care panel** | See needs and pet age; feed, water, play, or rest |
+| **Hover over your companion** | Reveal quick feed, water/splash, play, rest/wake, and Care controls |
+| **Open Care** | Choose a companion; see needs, food choices, activities, rest progress, and recent care |
 | **Drag Byte** | Move him and remember the new position |
 | **Type, then Return** | Send a question |
 | **Drop or paste an image** | Attach it to the next question |
@@ -191,7 +206,8 @@ Byte stores conversations, pet state, and attachments under `~/.config/byte`:
 ```text
 ~/.config/byte/
 ├── history.json                 # Current conversation
-├── pet.json                     # Needs, age, and pet state
+├── pet.json                     # Byte’s original needs, age, rest, and care history
+├── pet-{animal}.json            # Separate dolphin, dog, cat, and panda state
 ├── archives/
 │   └── chat-<timestamp>-<UUID>.json
 ├── images/
@@ -270,7 +286,7 @@ swift test
 plutil -lint Byte.app/Contents/Info.plist
 ```
 
-The [macOS workflow](.github/workflows/ci.yml) runs the same sequence. All **51 regression tests** passed on macOS 14 with Swift 5.10, along with the debug build, release bundle, and plist validation. Coverage includes request options, usage, persistence, archives, key migration, images, interrupted streams, cancellation, citations, and link handling, plus ChatGPT callback validation, identity signatures/claims, account separation, coordinated token rotation, sign-out during refresh, failed-save recovery, catalog retry, complete loopback sign-in and expired-code recovery, plan limits, and request contracts. Tests use temporary directories, stubbed HTTP streams, and in-memory credential stores; they do not make live provider calls or use your real Keychain.
+The [macOS workflow](.github/workflows/ci.yml) runs the same sequence. The original **51 regression tests** passed on macOS 14 with Swift 5.10. Companion regression tests add legacy-save migration, independent care histories, species-specific needs, elapsed naps, cancellation and duplicate-action protection, corrupted-save preservation, bundled artwork, and light/dark native render checks. Coverage includes request options, usage, persistence, archives, key migration, images, interrupted streams, cancellation, citations, and link handling, plus ChatGPT callback validation, identity signatures/claims, account separation, coordinated token rotation, sign-out during refresh, failed-save recovery, catalog retry, complete loopback sign-in and expired-code recovery, plan limits, and request contracts. Tests use temporary directories, stubbed HTTP streams, and in-memory credential stores; they do not make live provider calls or use your real Keychain.
 
 See the [passing native run](https://github.com/ronniekai999/byte/actions/runs/38094130147) and [readiness review](docs/CODE_REVIEW.md#readiness-review--october-10-2026) for the evidence and hands-on test steps. Live provider sign-in, real Keychain prompts, Login Items approval, and UI/audio behavior remain unverified.
 
@@ -287,7 +303,9 @@ See the [passing native run](https://github.com/ronniekai999/byte/actions/runs/3
 | [OAuthLoopbackListener.swift](Sources/Byte/OAuthLoopbackListener.swift) | Temporary local OAuth callback listener |
 | [ChatGPTRequest.swift](Sources/Byte/ChatGPTRequest.swift) | Subscription request contract and Responses stream events |
 | [ByteView.swift](Sources/Byte/ByteView.swift) | Pet interaction, chat, Markdown, settings, and archives |
-| [ByteSprite.swift](Sources/Byte/ByteSprite.swift) · [Props.swift](Sources/Byte/Props.swift) | Pixel-art character and care props |
+| [ByteSprite.swift](Sources/Byte/ByteSprite.swift) · [Props.swift](Sources/Byte/Props.swift) | Cached lifelike expressions and smooth care objects |
+| [Companion.swift](Sources/Byte/Companion.swift) · [PetCare.swift](Sources/Byte/PetCare.swift) | Species profiles and elapsed-time care simulation |
+| [CareView.swift](Sources/Byte/CareView.swift) | Companion selection, needs, and care dashboard |
 | [Quips.swift](Sources/Byte/Quips.swift) · [Sound.swift](Sources/Byte/Sound.swift) | Personality and synthesized audio |
 | [WebLinks.swift](Sources/Byte/WebLinks.swift) | HTTP(S)-only generated link handling |
 

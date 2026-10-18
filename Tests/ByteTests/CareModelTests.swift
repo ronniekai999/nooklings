@@ -1,4 +1,6 @@
 import XCTest
+import SwiftUI
+import AppKit
 @testable import Byte
 
 private final class CareTestKeys: APIKeyStoring {
@@ -31,6 +33,33 @@ private struct CareFixture {
 }
 
 final class CareModelTests: XCTestCase {
+    @MainActor
+    func testCareDashboardRendersForEveryCompanion() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let model = f.model()
+        for companion in Companion.allCases {
+            XCTAssertTrue(model.selectCompanion(companion))
+            let rgb = companion.tint
+            for scheme in [ColorScheme.light, .dark] {
+                let view = CareView(model: model, accent: Color(red: rgb.0, green: rgb.1, blue: rgb.2),
+                                    mood: .happy, phase: 0, isBusy: false, onCare: { _ in })
+                    .environment(\.colorScheme, scheme)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                let image = try XCTUnwrap(renderer.cgImage, "Couldn't render \(companion.name)")
+                XCTAssertEqual(image.width, 740)
+                XCTAssertEqual(image.height, 1240)
+                if let directory = ProcessInfo.processInfo.environment["BYTE_SNAPSHOT_DIRECTORY"] {
+                    let url = URL(fileURLWithPath: directory)
+                    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                    let file = url.appendingPathComponent("\(companion.rawValue)-\(scheme == .dark ? "dark" : "light").png")
+                    let bitmap = NSBitmapImageRep(cgImage: image)
+                    try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: file)
+                }
+            }
+        }
+    }
+
     @MainActor
     func testSwitchingPreservesIndependentNeedsAndRestoresSelection() throws {
         let f = try CareFixture(); defer { f.clean() }
