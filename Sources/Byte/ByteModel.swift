@@ -26,6 +26,7 @@ final class ByteModel: ObservableObject {
         var imageType: String? = nil
         var imageB64: String? = nil
         var displayImage: NSImage? = nil
+        var imageMissing = false
         enum Role: String, Codable { case user, byte }
         struct Source: Codable, Hashable { let title: String; let url: String }
 
@@ -83,6 +84,11 @@ final class ByteModel: ObservableObject {
     let chatGPT: ChatGPTAuth
 
     // Pending image attachment (vision), waiting to be sent with the next message.
+    @Published private(set) var isPreparingImage = false
+    @Published var attachmentError: String?
+    @Published private(set) var imageCleanupStatus: String?
+    private var imageTask: Task<Void, Never>?
+    private var imageRequestID: UUID?
     @Published var pendingImage: NSImage? = nil
     @Published var pendingImageB64: String? = nil
     @Published var pendingImageType: String? = nil
@@ -328,6 +334,9 @@ final class ByteModel: ObservableObject {
         return String(format: "$%g input / $%g output per million tokens · checked %@", p.input, p.output, ModelCatalog.verifiedOn)
     }
     var sendBlockReason: String? {
+        if turns.contains(where: { $0.imageMissing }) {
+            return "An earlier image is missing. Locate it or remove its attachment before sending, so the model doesn't receive incomplete context."
+        }
         if contextEstimate > effectiveContextCap {
             return "This thread exceeds your context limit. Start a new chat or review a summary to continue. Your draft is kept."
         }
@@ -384,7 +393,7 @@ final class ByteModel: ObservableObject {
         }
     }
     var canSend: Bool {
-        !isConnecting && hasConnection && (provider != .anthropic || (!isLoadingAnthropicModels && (anthropicModelsCheckedAt == nil || anthropicModels.contains { $0.id == model }))) && (provider == .anthropic ||
+        !isConnecting && !isPreparingImage && hasConnection && (provider != .anthropic || (!isLoadingAnthropicModels && (anthropicModelsCheckedAt == nil || anthropicModels.contains { $0.id == model }))) && (provider == .anthropic ||
             (!chatGPTUsageBlocked && chatGPTModels.contains { $0.slug == model }))
     }
 
@@ -688,6 +697,7 @@ final class ByteModel: ObservableObject {
         do { try FileManager.default.removeItem(at: url) }
         catch { storageError = "Couldn't delete this saved chat. \(error.localizedDescription)" }
         refreshHasArchive()
+        cleanupImages()
     }
 
     private func archiveURL(_ id: String) -> URL? {
@@ -731,7 +741,7 @@ final class ByteModel: ObservableObject {
             try FileManager.default.createDirectory(
                 atPath: imagesDir, withIntermediateDirectories: true,
                 attributes: [.posixPermissions: 0o700])
-            let id = turns[i].id.uuidString
+            let id = UUID().uuidString
             guard let url = imageURL(id) else { continue }
             try data.write(to: url, options: .atomic)
             turns[i].imageId = id
@@ -742,13 +752,25 @@ final class ByteModel: ObservableObject {
     /// from sidecar files for any decoded turns that reference one.
     private func relinkImages(_ list: inout [Turn]) {
         for i in list.indices {
-            guard let id = list[i].imageId, list[i].imageB64 == nil,
-                  let url = imageURL(id),
-                  let data = try? Data(contentsOf: url) else { continue }
+            guard let id = list[i].imageId, list[i].imageB64 == nil else { continue }
+            guard let url = imageURL(id),
+                  let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 5 * 1024 * 1024,
+                  let data = try? Data(contentsOf: url), let image = NSImage(data: data) else {
+                list[i].imageMissing = true; continue
+            }
             list[i].imageB64 = data.base64EncodedString()
-            list[i].displayImage = NSImage(data: data)
+            list[i].displayImage = image
+            list[i].imageMissing = false
             if list[i].imageType == nil { list[i].imageType = "image/jpeg" }
         }
+    }
+
+    func cleanupImages() {
+        guard !isStreaming, !isPreparingImage else { return }
+        do {
+            let count = try AttachmentStore.prune(root: configDirectory, liveIDs: Set(turns.compactMap(\.imageId)))
+            imageCleanupStatus = "Removed \(count) unused image\(count == 1 ? "" : "s")."
+        } catch { imageCleanupStatus = error.localizedDescription }
     }
 
     private func loadHistory() {
@@ -837,54 +859,57 @@ final class ByteModel: ObservableObject {
 
     // MARK: - Image attachment (vision)
 
-    static let visionModels = AnthropicRequestConfiguration.visionModels
-
     var conversationHasImage: Bool {
-        pendingImageB64 != nil || turns.contains { $0.imageB64 != nil }
+        pendingImageB64 != nil || turns.contains { $0.imageId != nil || $0.imageB64 != nil }
     }
 
-    func attachImage(_ image: NSImage) {
-        guard let (type, b64) = Self.encodeImage(image) else { return }
-        pendingImageType = type
-        pendingImageB64 = b64
-        pendingImage = image
-        // a non-vision model can't see it — switch to the default vision model
-        if provider == .anthropic, !Self.visionModels.contains(model) {
-            defaults.set("claude-sonnet-4-6", forKey: "byte.model")
+    func attachImage(data: Data) { prepareAttachment { try ImageAttachment.prepare(data: data) } }
+    func attachImage(url: URL, replacing turnID: UUID? = nil) {
+        prepareAttachment(replacing: turnID) { try ImageAttachment.prepare(url: url) }
+    }
+
+    private func prepareAttachment(replacing turnID: UUID? = nil, operation: @escaping @Sendable () throws -> Data) {
+        guard !isStreaming else { return }
+        imageTask?.cancel()
+        let requestID = UUID()
+        imageRequestID = requestID; isPreparingImage = true; attachmentError = nil
+        imageTask = Task {
+            let worker = Task.detached(priority: .userInitiated) { try operation() }
+            do {
+                let data = try await withTaskCancellationHandler(operation: { try await worker.value }, onCancel: { worker.cancel() })
+                guard !Task.isCancelled, imageRequestID == requestID else { return }
+                let image = NSImage(data: data), b64 = data.base64EncodedString()
+                if let turnID {
+                    guard let i = turns.firstIndex(where: { $0.id == turnID }), turns[i].imageMissing else {
+                        isPreparingImage = false; return
+                    }
+                    let previous = turns[i]
+                    turns[i].imageId = nil; turns[i].imageType = "image/jpeg"; turns[i].imageB64 = b64
+                    turns[i].displayImage = image; turns[i].imageMissing = false
+                    if !persist() { turns[i] = previous }
+                } else {
+                    pendingImageType = "image/jpeg"; pendingImageB64 = b64; pendingImage = image
+                }
+            } catch {
+                guard !Task.isCancelled, imageRequestID == requestID else { return }
+                attachmentError = error.localizedDescription
+            }
+            if imageRequestID == requestID { isPreparingImage = false; imageTask = nil; imageRequestID = nil }
         }
+    }
+
+    func removeMissingImage(from turnID: UUID) {
+        guard !isStreaming, !isPreparingImage, let i = turns.firstIndex(where: { $0.id == turnID }), turns[i].imageMissing else { return }
+        let previous = turns[i]
+        turns[i].imageId = nil; turns[i].imageType = nil; turns[i].imageB64 = nil
+        turns[i].displayImage = nil; turns[i].imageMissing = false
+        if turns[i].text.isEmpty { turns[i].text = "[Unavailable image removed]" }
+        if !persist() { turns[i] = previous }
     }
 
     func clearPendingImage() {
-        pendingImage = nil
-        pendingImageB64 = nil
-        pendingImageType = nil
-    }
-
-    /// Downscale to a sane size for vision (long edge ≤ 1568px, Anthropic's guidance)
-    /// and JPEG-encode to base64 — keeps tokens/cost and payload reasonable.
-    private static func encodeImage(_ image: NSImage, maxDim: CGFloat = 1568,
-                                    quality: Double = 0.85) -> (String, String)? {
-        guard let tiff = image.tiffRepresentation,
-              let src = NSBitmapImageRep(data: tiff) else { return nil }
-        let pw = src.pixelsWide, ph = src.pixelsHigh
-        guard pw > 0, ph > 0 else { return nil }
-        let scale = min(1.0, maxDim / CGFloat(max(pw, ph)))
-        let tw = max(1, Int(CGFloat(pw) * scale)), th = max(1, Int(CGFloat(ph) * scale))
-        guard let out = NSBitmapImageRep(
-            bitmapDataPlanes: nil, pixelsWide: tw, pixelsHigh: th,
-            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
-        out.size = NSSize(width: tw, height: th)
-        NSGraphicsContext.saveGraphicsState()
-        if let ctx = NSGraphicsContext(bitmapImageRep: out) {
-            NSGraphicsContext.current = ctx
-            ctx.imageInterpolation = .high
-            _ = src.draw(in: NSRect(x: 0, y: 0, width: tw, height: th))
-        }
-        NSGraphicsContext.restoreGraphicsState()
-        guard let jpeg = out.representation(using: .jpeg,
-                                            properties: [.compressionFactor: quality]) else { return nil }
-        return ("image/jpeg", jpeg.base64EncodedString())
+        imageTask?.cancel(); imageTask = nil; imageRequestID = nil; isPreparingImage = false
+        pendingImage = nil; pendingImageB64 = nil; pendingImageType = nil
     }
 
     private var legacyKeyURL: URL {
@@ -984,6 +1009,7 @@ final class ByteModel: ObservableObject {
         cancelChatGPTSignIn()
         catalogTask?.cancel()
         anthropicCatalogTask?.cancel()
+        imageTask?.cancel()
         persist()
         persistPet(force: true)
     }

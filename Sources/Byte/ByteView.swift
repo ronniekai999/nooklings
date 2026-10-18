@@ -201,6 +201,10 @@ struct ByteView: View {
                 .accessibilityHint("Opens or closes chat")
                 .accessibilityAddTraits(.isButton)
                 .accessibilityAction { model.toggleChat() }
+                .accessibilityValue(model.pet.status)
+                .accessibilityAction(named: Text("Open care")) { showCare = true }
+                .focusable()
+                .onKeyPress(keys: [.return, .space]) { model.toggleChat(); return .handled }
 
             if let action = careScene {
                 PropSprite(prop: .object(for: action, companion: model.companion), size: 30)
@@ -335,27 +339,9 @@ struct ByteView: View {
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
-        guard let p = providers.first else { return false }
-        if p.canLoadObject(ofClass: NSImage.self) {
-            _ = p.loadObject(ofClass: NSImage.self) { obj, _ in
-                guard let img = obj as? NSImage else { return }
-                Task { @MainActor in attach(img) }
-            }
-            return true
-        }
-        if p.canLoadObject(ofClass: NSURL.self) {
-            _ = p.loadObject(ofClass: NSURL.self) { obj, _ in
-                guard let nsurl = obj as? NSURL, let img = NSImage(contentsOf: nsurl as URL) else { return }
-                Task { @MainActor in attach(img) }
-            }
-            return true
-        }
-        return false
-    }
-
-    private func attach(_ img: NSImage) {
-        model.attachImage(img)
-        if !model.chatOpen { model.toggleChat() }
+        guard !model.isStreaming, AttachmentInput.load(providers, into: model) else { return false }
+        model.openAndFocusChat()
+        return true
     }
 
     // MARK: tricks
@@ -672,6 +658,16 @@ struct ChatPanel: View {
             }
             if model.hasConnection {
                 transcript
+                if model.isPreparingImage {
+                    HStack {
+                        ProgressView().controlSize(.small)
+                        Text("Preparing image…").font(.caption)
+                        Button("Cancel") { model.clearPendingImage() }
+                    }
+                }
+                if let error = model.attachmentError {
+                    Text(error).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                }
                 if model.pendingImage != nil { pendingImageChip }
                 ContextControls(model: model)
                 inputBar
@@ -712,11 +708,7 @@ struct ChatPanel: View {
             WebLinks.canOpen(url) ? .systemAction : .discarded
         })
         .onPasteCommand(of: [.image]) { providers in
-            guard let p = providers.first, p.canLoadObject(ofClass: NSImage.self) else { return }
-            _ = p.loadObject(ofClass: NSImage.self) { obj, _ in
-                guard let img = obj as? NSImage else { return }
-                Task { @MainActor in model.attachImage(img) }
-            }
+            if !model.isStreaming { AttachmentInput.load(providers, into: model) }
         }
         .onReceive(dotTimer) { _ in
             guard model.isThinking || model.searching else { if !dots.isEmpty { dots = "" }; return }
@@ -827,6 +819,15 @@ struct ChatPanel: View {
                                 .frame(maxWidth: 180, maxHeight: 180)
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
+                        if turn.imageMissing {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Image unavailable", systemImage: "photo.badge.exclamationmark")
+                                HStack {
+                                    Button("Locate image…") { AttachmentInput.choose(for: model, replacing: turn.id) }
+                                    Button("Remove attachment") { model.removeMissingImage(from: turn.id) }
+                                }.buttonStyle(.bordered).disabled(model.isStreaming || model.isPreparingImage)
+                            }.font(.caption).accessibilityElement(children: .contain)
+                        }
                         if !turn.text.isEmpty {
                             Text(turn.text)
                                 .font(.system(size: 12, design: .rounded))
@@ -871,6 +872,11 @@ struct ChatPanel: View {
 
     private var inputBar: some View {
         HStack(spacing: 6) {
+            Button { AttachmentInput.choose(for: model) } label: { Image(systemName: "paperclip") }
+                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .accessibilityLabel("Choose image file")
+                .help("Choose an image file")
+                .disabled(model.isStreaming || model.isPreparingImage)
             Button { pasteImage() } label: {
                 Image(systemName: "doc.on.clipboard").font(.system(size: 13))
             }
@@ -908,7 +914,7 @@ struct ChatPanel: View {
     }
 
     private func pasteImage() {
-        if let img = NSImage(pasteboard: .general) { model.attachImage(img) }
+        AttachmentInput.paste(into: model)
     }
 
     private var canSend: Bool {
@@ -1335,6 +1341,12 @@ struct SettingsView: View {
             }
             Divider()
             LimitSettings(limits: byte.limits, isClaude: byte.provider == .anthropic, spent: byte.dailyEstimatedCost)
+            Divider()
+            Button("Clean up unused images") { byte.cleanupImages() }
+                .disabled(byte.isStreaming || byte.isPreparingImage)
+            if let status = byte.imageCleanupStatus {
+                Text(status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
         }
         .font(.system(size: 12, design: .rounded))
         .padding(14)

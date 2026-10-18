@@ -100,6 +100,32 @@ private struct Fixture {
 
 final class ByteModelTests: XCTestCase {
     @MainActor
+    func testMissingAttachmentIsVisibleBlocksSendingAndCanBeRemovedPersistently() throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        let turn = ByteModel.Turn(role: .user, text: "Describe this", imageId: UUID().uuidString, imageType: "image/jpeg")
+        try JSONEncoder().encode([turn]).write(to: f.root.appendingPathComponent("history.json"))
+        let loaded = f.reloaded()
+        XCTAssertTrue(loaded.turns[0].imageMissing)
+        XCTAssertTrue(loaded.sendBlockReason?.contains("missing") == true)
+        loaded.removeMissingImage(from: turn.id)
+        XCTAssertFalse(loaded.turns[0].imageMissing)
+        XCTAssertNil(loaded.turns[0].imageId)
+        XCTAssertEqual(loaded.turns[0].text, "Describe this")
+        XCTAssertNil(f.reloaded().turns[0].imageId)
+    }
+
+    @MainActor
+    func testCancelledImagePreparationCannotReappearInNewChat() async throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        f.model.attachImage(data: Data("bad image".utf8))
+        f.model.newChat()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertFalse(f.model.isPreparingImage)
+        XCTAssertNil(f.model.pendingImageB64)
+        XCTAssertNil(f.model.attachmentError)
+    }
+
+    @MainActor
     func testContextAndSpendGuardsKeepDraftAndNeverSendBlockedRequests() throws {
         let f = try Fixture(); defer { f.cleanup() }
         StubURLProtocol.handler = { _ in XCTFail("Blocked sends must not use the network") }
@@ -840,7 +866,7 @@ final class ByteModelTests: XCTestCase {
     }
 
     @MainActor
-    func testHaikuImageAttachmentKeepsHaikuSelected() throws {
+    func testHaikuImageAttachmentKeepsHaikuSelected() async throws {
         let f = try Fixture()
         defer { f.cleanup() }
         f.defaults.set("claude-haiku-4-5-20251001", forKey: "byte.model")
@@ -850,7 +876,11 @@ final class ByteModelTests: XCTestCase {
             bytesPerRow: 0, bitsPerPixel: 0))
         let image = NSImage(size: NSSize(width: 4, height: 4))
         image.addRepresentation(bitmap)
-        f.model.attachImage(image)
+        f.model.attachImage(data: try XCTUnwrap(image.tiffRepresentation))
+        let deadline = Date().addingTimeInterval(5)
+        while f.model.isPreparingImage && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertFalse(f.model.isPreparingImage)
+        XCTAssertNil(f.model.attachmentError)
         XCTAssertNotNil(f.model.pendingImageB64)
         XCTAssertEqual(f.model.model, "claude-haiku-4-5-20251001")
     }
