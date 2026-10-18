@@ -1,4 +1,24 @@
-# Byte code review
+# Nooklings review and validation
+
+## Nooklings update — October 18, 2026
+
+The app is now Nooklings, with Byte the T-Rex, Ripple the dolphin, Biscuit the dog,
+Miso the cat, and Bao the panda. Each animal has its own care profile, save file,
+expressions, props, and play/rest animations. The original Byte save location,
+bundle identity, preference keys, and Keychain services remain in use for upgrades.
+
+The [native macOS check](https://github.com/ronniekai999/byte/actions/runs/39100486937)
+passes **68 tests**, release bundling, app metadata, icon generation, and verification
+of all five bundled artwork atlases. Tests cover elapsed care and rest, per-animal
+persistence, damaged saves, cancellation and duplicate completion, the 30 expression
+frames, and native light/dark care renders, alongside the existing AI/auth suite.
+The README uses portraits and dashboard pictures exported by the app's renderer.
+
+Live animation timing, sound, notch interactions, provider sign-in, real Keychain
+prompts, and Login Items still require a hands-on Mac pass. Repository renaming to
+`nooklings` is an administrative step; the current GitHub URL remains `byte`.
+
+Earlier review entries below refer to the app by its former name, Byte.
 
 ## Subscription connection update — October 10, 2026
 

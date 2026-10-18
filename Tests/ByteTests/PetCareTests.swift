@@ -1,0 +1,130 @@
+import XCTest
+@testable import Byte
+
+final class PetCareTests: XCTestCase {
+    private let start = Date(timeIntervalSince1970: 1_700_000_000)
+
+    func testLegacySaveKeepsNeedsAndBirthday() throws {
+        let legacy = """
+        {"hunger":42,"thirst":61,"energy":23,"happiness":71,
+         "lastTick":721692800,"lastCheckIn":721692799,"nextCheckIn":721694600,"born":720000000}
+        """
+        let pet = try JSONDecoder().decode(PetState.self, from: Data(legacy.utf8))
+        XCTAssertEqual(pet.hunger, 42)
+        XCTAssertEqual(pet.energy, 23)
+        XCTAssertEqual(pet.born, Date(timeIntervalSinceReferenceDate: 720000000))
+        XCTAssertEqual(pet.careCount, 0)
+        XCTAssertNil(pet.restingUntil)
+        let reloaded = try JSONDecoder().decode(PetState.self, from: JSONEncoder().encode(pet))
+        XCTAssertEqual(reloaded.born, pet.born)
+    }
+
+    func testNapRecoversOverTimeAndContinuesAcrossRelaunch() throws {
+        var pet = PetState(now: start)
+        pet.energy = 20
+        XCTAssertTrue(pet.perform(.rest, companion: .cat, at: start))
+        XCTAssertEqual(pet.energy, 20, "Starting a nap must not award instant energy")
+        pet.advance(to: start.addingTimeInterval(60), companion: .cat)
+        XCTAssertEqual(pet.energy, 34, accuracy: 0.001)
+        var reloaded = try JSONDecoder().decode(PetState.self, from: JSONEncoder().encode(pet))
+        reloaded.advance(to: start.addingTimeInterval(240), companion: .cat)
+        XCTAssertFalse(reloaded.isResting)
+        XCTAssertEqual(reloaded.energy, 61.95, accuracy: 0.001, "Three minutes of sleep, then one minute awake")
+    }
+
+    func testWakeRetainsOnlyEnergyAlreadyRecovered() {
+        var pet = PetState(now: start)
+        pet.energy = 20
+        pet.perform(.rest, companion: .trex, at: start)
+        pet.perform(.wake, companion: .trex, at: start.addingTimeInterval(60))
+        XCTAssertFalse(pet.isResting)
+        XCTAssertEqual(pet.energy, 31, accuracy: 0.001)
+        pet.advance(to: start.addingTimeInterval(120), companion: .trex)
+        XCTAssertLessThan(pet.energy, 31)
+    }
+
+    func testClockRollbackCannotGrantDuplicateSleepEnergy() {
+        var pet = PetState(now: start)
+        pet.energy = 10
+        pet.perform(.rest, companion: .dog, at: start)
+        pet.advance(to: start.addingTimeInterval(60), companion: .dog)
+        pet.advance(to: start.addingTimeInterval(30), companion: .dog)
+        pet.advance(to: start.addingTimeInterval(60), companion: .dog)
+        XCTAssertEqual(pet.energy, 20, accuracy: 0.001)
+    }
+
+    func testSleepingCompanionDoesNotEatOrPlay() {
+        var pet = PetState(now: start)
+        pet.energy = 30; pet.hunger = 30
+        pet.perform(.rest, companion: .panda, at: start)
+        XCTAssertFalse(pet.perform(.meal, companion: .panda, at: start))
+        XCTAssertFalse(pet.perform(.play, companion: .panda, at: start))
+        XCTAssertEqual(pet.hunger, 30)
+        XCTAssertEqual(pet.careCount, 1)
+    }
+
+    func testFoodHydrationAndPlayHaveSpeciesSpecificEffects() {
+        var dino = PetState(now: start), dolphin = PetState(now: start), panda = PetState(now: start)
+        dino.hunger = 30; dolphin.hunger = 30; panda.hunger = 30
+        dolphin.thirst = 40
+        dino.perform(.meal, companion: .trex, at: start)
+        dolphin.perform(.meal, companion: .dolphin, at: start)
+        panda.perform(.meal, companion: .panda, at: start)
+        XCTAssertEqual(dino.hunger, 68)
+        XCTAssertEqual(dolphin.hunger, 62)
+        XCTAssertEqual(dolphin.thirst, 48, "Fish contributes to Ripple's moisture")
+        XCTAssertEqual(panda.hunger, 58)
+        dino.perform(.play, companion: .trex, at: start)
+        panda.perform(.play, companion: .panda, at: start)
+        XCTAssertEqual(dino.energy, 62)
+        XCTAssertEqual(panda.energy, 70)
+        XCTAssertNotEqual(Companion.dolphin.hydrationLabel, Companion.dog.hydrationLabel)
+        XCTAssertEqual(Set(Companion.allCases.map(\.game)).count, 5)
+        XCTAssertEqual(Set(Companion.allCases.map(\.hydrationAction)).count, 5)
+    }
+
+    func testNeedsGatePlayAndCapFood() {
+        var pet = PetState(now: start)
+        pet.energy = 10
+        XCTAssertFalse(pet.perform(.play, companion: .dog, at: start))
+        pet.energy = 80; pet.thirst = 10
+        XCTAssertFalse(pet.perform(.explore, companion: .dog, at: start))
+        pet.hunger = 89
+        XCTAssertTrue(pet.perform(.meal, companion: .dog, at: start))
+        XCTAssertEqual(pet.hunger, 100)
+        XCTAssertFalse(pet.perform(.snack, companion: .dog, at: start))
+    }
+
+    func testOfflineDecayAndRestAreIndependentOfTickFrequency() {
+        var once = PetState(now: start), often = PetState(now: start)
+        once.energy = 20; often.energy = 20
+        once.perform(.rest, companion: .panda, at: start)
+        often.perform(.rest, companion: .panda, at: start)
+        once.advance(to: start.addingTimeInterval(3600), companion: .panda)
+        for second in 1...3600 { often.advance(to: start.addingTimeInterval(Double(second)), companion: .panda) }
+        XCTAssertEqual(once.energy, often.energy, accuracy: 0.001)
+        XCTAssertEqual(once.hunger, often.hunger, accuracy: 0.001)
+        XCTAssertEqual(once.thirst, often.thirst, accuracy: 0.001)
+    }
+
+    func testCareHistoryIsBoundedAndPersists() throws {
+        var pet = PetState(now: start)
+        pet.happiness = 10
+        for _ in 0..<8 { pet.perform(.affection, companion: .dog, at: start) }
+        let loaded = try JSONDecoder().decode(PetState.self, from: JSONEncoder().encode(pet))
+        XCTAssertEqual(loaded.careCount, 8)
+        XCTAssertEqual(loaded.recentCare.count, 5)
+        XCTAssertEqual(loaded.recentCare.first?.action, .affection)
+    }
+
+    func testAllThirtyExpressionsAreBundled() {
+        for companion in Companion.allCases {
+            for mood in ByteSprite.Mood.allCases {
+                let image = CompanionArtwork.frame(companion, mood: mood)
+                XCTAssertNotNil(image, "Missing \(companion.rawValue) / \(mood)")
+                XCTAssertGreaterThan(image?.width ?? 0, 300)
+                XCTAssertGreaterThan(image?.height ?? 0, 300)
+            }
+        }
+    }
+}

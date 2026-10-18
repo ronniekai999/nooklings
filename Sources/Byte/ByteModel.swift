@@ -136,163 +136,148 @@ final class ByteModel: ObservableObject {
 
     // MARK: - Virtual-pet engine (feed / water / play / rest + proactive check-ins)
 
-    /// Byte's needs, 0–100 (100 = fully satisfied). All decay slowly over real time,
-    /// even while the app is closed, computed from `lastTick`.
-    struct PetState: Codable {
-        var hunger    = 80.0
-        var thirst    = 80.0
-        var energy    = 80.0
-        var happiness = 80.0
-        var lastTick   = Date()
-        var lastCheckIn = Date()
-        var nextCheckIn = Date().addingTimeInterval(Double.random(in: 1500...2700)) // 25–45 min
-        var born       = Date()
+    @Published private(set) var companion: Companion = .trex
+    @Published var pet = PetState()
+    @Published private(set) var activeCare: CareAction?
+    @Published private(set) var careFeedback: String?
+    private var careToken: UUID?
+    private var petPersistenceBlocked = false
+    var onCheckIn: (@MainActor (String) -> Void)?
+    private var lastPetSave = Date.distantPast
+    private var checkInsEnabled: Bool { defaults.bool(forKey: "byte.checkins") }
+    var petAgeDays: Int { max(0, Int(now().timeIntervalSince(pet.born) / 86_400)) }
+    var restSecondsRemaining: Int { max(0, Int(ceil((pet.restingUntil ?? now()).timeIntervalSince(now())))) }
+
+    private func petURL(for companion: Companion) -> URL {
+        // Keep the original Byte file exactly where existing installations expect it.
+        configDirectory.appendingPathComponent(companion == .trex ? "pet.json" : "pet-\(companion.rawValue).json")
     }
 
-    @Published var pet = PetState()
-
-    /// Fired when Byte wants to say something on his own (need reminders / friendly
-    /// check-ins). The view wires this to the speech bubble. Gated on the chat being
-    /// closed and a minimum spacing so he never nags.
-    var onCheckIn: (@MainActor (String) -> Void)?
-
-    // Transient "already warned about this need" flags (not persisted).
-    private var warnHunger = false, warnThirst = false, warnEnergy = false
-    private var lastPetSave = Date.distantPast
-
-    private var checkInsEnabled: Bool { defaults.bool(forKey: "byte.checkins") }
-
-    /// Whole days since Byte hatched (for the care panel).
-    var petAgeDays: Int { max(0, Int(Date().timeIntervalSince(pet.born) / 86_400)) }
-
-    private var petURL: URL {
-        URL(fileURLWithPath: (configDir as NSString).appendingPathComponent("pet.json"))
+    private func readPet(for companion: Companion) throws -> PetState {
+        let url = petURL(for: companion)
+        guard FileManager.default.fileExists(atPath: url.path) else { return PetState(now: now()) }
+        return try JSONDecoder().decode(PetState.self, from: Data(contentsOf: url))
     }
 
     private func loadPet() {
-        if let data = try? Data(contentsOf: petURL),
-           let p = try? JSONDecoder().decode(PetState.self, from: data) {
-            pet = p
+        companion = Companion(rawValue: defaults.string(forKey: "byte.companion") ?? "") ?? .trex
+        do { pet = try readPet(for: companion) }
+        catch {
+            // Never overwrite a damaged/unreadable save with default needs.
+            pet = PetState(now: now())
+            petPersistenceBlocked = true
+            storageError = "Couldn't read \(companion.name)'s care history. The original file is preserved. \(error.localizedDescription)"
         }
-        tickPet()   // apply decay accrued while the app was closed
+        tickPet()
     }
 
-    private func persistPet(force: Bool) {
-        let now = Date()
-        if !force, now.timeIntervalSince(lastPetSave) < 30 { return }   // throttle background saves
+    @discardableResult
+    private func persistPet(force: Bool) -> Bool {
+        guard !petPersistenceBlocked else { return false }
+        let date = now()
+        if !force, date.timeIntervalSince(lastPetSave) < 30 { return true }
         do {
-            try FileManager.default.createDirectory(
-                atPath: configDir, withIntermediateDirectories: true,
+            try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true,
                 attributes: [.posixPermissions: 0o700])
-            let data = try JSONEncoder().encode(pet)
-            try data.write(to: petURL, options: .atomic)
-            lastPetSave = now
+            try JSONEncoder().encode(pet).write(to: petURL(for: companion), options: .atomic)
+            lastPetSave = date
+            return true
         } catch {
-            storageError = "Couldn't save Byte's needs. \(error.localizedDescription)"
+            storageError = "Couldn't save \(companion.name)'s needs. \(error.localizedDescription)"
+            return false
         }
     }
 
-    /// Advance needs by however much real time has elapsed, settle happiness toward
-    /// overall wellbeing, and consider a check-in. Safe to call frequently — decay is
-    /// elapsed-based, so extra calls within the same moment are no-ops.
-    func tickPet() {
-        let now = Date()
-        let dtH = now.timeIntervalSince(pet.lastTick) / 3600.0
-        if dtH > 0 {
-            pet.hunger = max(0, pet.hunger - dtH * 8.0)     // empty in ~12 h
-            pet.thirst = max(0, pet.thirst - dtH * 12.0)    // empty in ~8 h
-            pet.energy = max(0, pet.energy - dtH * 3.5)     // empty in ~28 h
-            let wellbeing = (pet.hunger + pet.thirst + pet.energy) / 3.0
-            pet.happiness += (wellbeing - pet.happiness) * min(1.0, dtH * 0.6)
-            pet.happiness = max(0, min(100, pet.happiness))
-            pet.lastTick = now
+    @discardableResult
+    func selectCompanion(_ next: Companion) -> Bool {
+        guard next != companion else { return true }
+        guard activeCare == nil, !isStreaming else { return false }
+        do {
+            let saved = try readPet(for: next)
+            guard persistPet(force: true) else { return false }
+            companion = next; pet = saved
+            defaults.set(next.rawValue, forKey: "byte.companion")
+            careFeedback = "Hello, \(next.name). \(next.personality)"
+            lastPetSave = .distantPast
+            tickPet()
+            return true
+        } catch {
+            storageError = "Couldn't open \(next.name)'s care history. Your current companion is still here. \(error.localizedDescription)"
+            return false
         }
-        handleCheckIns(now)
+    }
+
+    func tickPet() {
+        let date = now()
+        pet.advance(to: date, companion: companion)
+        // Quiet during sleep, chat, and interactions; reminders stay at least 8 minutes apart.
+        if onCheckIn != nil, checkInsEnabled, !chatOpen, !pet.isResting, activeCare == nil,
+           date.timeIntervalSince(pet.lastCheckIn) > 480 {
+            let needsCare = min(pet.hunger, pet.thirst, pet.energy) < 28
+            if needsCare || date >= pet.nextCheckIn {
+                let message = needsCare ? "\(companion.name) could use \(pet.suggestedAction.title(for: companion).lowercased())." : companion.greeting
+                pet.lastCheckIn = date
+                pet.nextCheckIn = date.addingTimeInterval(Double.random(in: 1500...2700))
+                onCheckIn?(message)
+            }
+        }
         persistPet(force: false)
     }
 
-    private func handleCheckIns(_ now: Date) {
-        // onCheckIn is wired by the view on appear; until then (the decay tick during
-        // init) skip check-ins so the first "welcome back" reminder isn't lost.
-        guard onCheckIn != nil, checkInsEnabled, !chatOpen else { return }
-        guard now.timeIntervalSince(pet.lastCheckIn) > 480 else { return }   // ≥ 8 min apart
-        if let msg = urgentNeedMessage() { fireCheckIn(msg, now); return }
-        if now >= pet.nextCheckIn {
-            fireCheckIn(checkInMessage(), now)
-            pet.nextCheckIn = now.addingTimeInterval(Double.random(in: 1500...2700))
+    /// One reservation shared by the hover bar, dashboard and keyboard actions.
+    func beginCare(_ action: CareAction) -> UUID? {
+        guard activeCare == nil else { return nil }
+        // Settle needs without firing a greeting/trick into the care animation.
+        pet.advance(to: now(), companion: companion)
+        if let reason = pet.unavailableReason(for: action, companion: companion) {
+            careFeedback = reason; return nil
+        }
+        let token = UUID()
+        careToken = token; activeCare = action
+        careFeedback = "\(action.title(for: companion))…"
+        return token
+    }
+
+    func completeCare(_ token: UUID) {
+        guard careToken == token, let action = activeCare else { return }
+        let applied = pet.perform(action, companion: companion, at: now())
+        careToken = nil; activeCare = nil
+        if applied {
+            careFeedback = reaction(to: action)
+            persistPet(force: true)
+        } else {
+            careFeedback = pet.unavailableReason(for: action, companion: companion)
         }
     }
 
-    /// One-shot reminder the moment a need first drops into the danger zone.
-    private func urgentNeedMessage() -> String? {
-        if pet.hunger > 45 { warnHunger = false }
-        if pet.thirst > 45 { warnThirst = false }
-        if pet.energy > 45 { warnEnergy = false }
-        if pet.hunger < 25, !warnHunger { warnHunger = true
-            return ["I'm getting really hungry… 🍖", "Rawr — my tummy's rumbling. Snack? 🦖",
-                    "Could a dino get a bite to eat? 🍖"].randomElement() }
-        if pet.thirst < 25, !warnThirst { warnThirst = true
-            return ["I'm parched over here… 💧", "Water? Pretty please? 🦖",
-                    "So thirsty. A little H2O? 💧"].randomElement() }
-        if pet.energy < 25, !warnEnergy { warnEnergy = true
-            return ["I'm getting sleepy… 😴", "These tiny arms are tired. Nap time? 🦖",
-                    "Running low on steam… 😴"].randomElement() }
-        return nil
+    func cancelCare(_ token: UUID) {
+        guard careToken == token else { return }
+        careToken = nil; activeCare = nil; careFeedback = "Ready when you are."
     }
 
-    private func checkInMessage() -> String? {
-        // Lead with whatever's lowest if it's notably low; otherwise a friendly hello.
-        let needs = [(pet.hunger, "🍖", ["Starting to get peckish 🍖", "Snack soon? 🦖"]),
-                     (pet.thirst, "💧", ["Could go for some water 💧", "Bit thirsty 🦖"]),
-                     (pet.energy, "😴", ["Getting a little drowsy 😴", "Might need a nap soon 🦖"]),
-                     (pet.happiness, "🎾", ["Wanna play? 🎾", "Feeling a bit bored 🦖"])]
-        if let low = needs.min(by: { $0.0 < $1.0 }), low.0 < 40 {
-            return low.2.randomElement()
+    private func reaction(to action: CareAction) -> String {
+        switch action {
+        case .meal, .snack: return "\(companion.name) loved those \(action.title(for: companion).lowercased())."
+        case .water:
+            switch companion {
+            case .trex: return "A big drink for a little dinosaur."
+            case .dolphin: return "Fresh splash, happy flippers."
+            case .dog: return "Bowl empty. Tail still wagging."
+            case .cat: return "Fresh running water. Miso approves."
+            case .panda: return "Cool spring water. Back to taking it slow."
+            }
+        case .play, .explore: return "\(action.title(for: companion)) complete. \(companion.name) is beaming."
+        case .rest: return "\(companion.name) is resting. Energy will recover over \(Int(companion.napMinutes)) minutes."
+        case .wake: return "Welcome back, \(companion.name)."
+        case .affection:
+            switch companion {
+            case .trex: return "Tiny arms, enormous appreciation."
+            case .dolphin: return "Ripple answers with a happy little whistle."
+            case .dog: return "Biscuit’s tail says it all."
+            case .cat: return "A slow blink and a very contented purr."
+            case .panda: return "Bao leans into your gentle pat."
+            }
         }
-        return ["Just checking in — all good here! 🦖", "Hope your day's going great 🦖",
-                "Having a stomp-tastic day up here 🦖", "Still here if you need me 🦖"].randomElement()
-    }
-
-    private func fireCheckIn(_ msg: String?, _ now: Date) {
-        guard let msg else { return }
-        pet.lastCheckIn = now
-        onCheckIn?(msg)
-    }
-
-    // MARK: care actions (return a short reaction Byte "says")
-
-    func feed() -> String {
-        if pet.hunger >= 88 { return "I'm stuffed! 🦖" }
-        pet.hunger = min(100, pet.hunger + 34); pet.happiness = min(100, pet.happiness + 6)
-        persistPet(force: true)
-        return ["Yum! 🍖", "Nom nom nom 🦖", "Delicious, thank you!", "Just what I needed 🍖"].randomElement()!
-    }
-
-    func water() -> String {
-        if pet.thirst >= 90 { return "Not thirsty right now 🦖" }
-        pet.thirst = min(100, pet.thirst + 40); pet.happiness = min(100, pet.happiness + 4)
-        persistPet(force: true)
-        return ["Ahh, refreshing! 💧", "Glug glug glug 🦖", "Much better, thanks!", "Hydrated! 💧"].randomElement()!
-    }
-
-    func play() -> String {
-        if pet.energy < 14 { return "Too tired to play… 😴" }
-        pet.energy = max(0, pet.energy - 14); pet.happiness = min(100, pet.happiness + 28)
-        persistPet(force: true)
-        return ["Rawr! That was fun! 🎾", "Wheee! Again! 🦖", "Best day ever!", "I love playing with you! 🎾"].randomElement()!
-    }
-
-    func rest() -> String {
-        if pet.energy >= 90 { return "I'm wide awake! 🦖" }
-        pet.energy = min(100, pet.energy + 48)
-        persistPet(force: true)
-        return ["Zzz… 😴", "Power nap! 🦖", "Ahh, recharged!", "That hit the spot 😴"].randomElement()!
-    }
-
-    func petByte() -> String {
-        pet.happiness = min(100, pet.happiness + 10)
-        persistPet(force: true)
-        return ["Hehe, that tickles 🦖", "Rawr ♥", "I like you too!", "More scritches please 🦖"].randomElement()!
     }
 
     // Approximate public list prices (USD per 1M tokens). Edit if Anthropic's change;
@@ -420,13 +405,17 @@ final class ByteModel: ObservableObject {
     private var webSearchOn: Bool { (defaults.object(forKey: "byte.webSearch") as? Bool) ?? true }
     private var punLevel: Int { (defaults.object(forKey: "byte.puns") as? Int) ?? 2 }
 
-    private let systemPrompt = """
-    You are Byte, a witty, upbeat little T-rex who lives in the user's MacBook \
-    Pro notch and helps them out. You're friendly and enthusiastic, and a touch \
-    self-deprecating about your tiny arms. Keep replies short and warm — usually \
-    1–4 sentences — because they appear in a small speech bubble. You remember the \
-    conversation, so refer back to it naturally. Be useful first, playful second.
-    """
+    private var systemPrompt: String {
+        """
+        You are \(companion.name), a witty, warm \(companion.species.lowercased()) companion \
+        who lives in the user's Mac notch in the Nooklings app. Your personality: \(companion.personality) \
+        Keep replies short and warm, usually 1–4 sentences, because they appear in a small panel. \
+        Remember the conversation naturally. Be useful first, playful second. \
+        Your current needs: fullness \(Int(pet.hunger))%, \(companion.hydrationLabel.lowercased()) \(Int(pet.thirst))%, \
+        energy \(Int(pet.energy))%, joy \(Int(pet.happiness))%. Care is a virtual-pet simulation. \
+        Do not claim you performed a care action through chat; the user uses the Care controls.
+        """
+    }
 
     /// The system prompt with today's real date prepended. The API doesn't supply the
     /// current date, so without this Byte assumes a date near his training cutoff — which
@@ -448,9 +437,9 @@ final class ByteModel: ObservableObject {
         case 0:
             parts.append("Don't use puns; keep your replies clean and straightforward.")
         case 1:
-            parts.append("You may slip in the occasional light dino pun, but keep it subtle and don't force it.")
+            parts.append("You may slip in an occasional light pun about your animal species, but keep it subtle.")
         default:
-            parts.append("You love a good dinosaur pun and slip one into most replies — \"rawr-some,\" \"dino-mite,\" \"that's a T-rex-cellent question,\" \"let's dig into it,\" \"a roaring success,\" and so on. About one per reply; keep them clever and never at the expense of being clear and helpful. Ease off if a topic is serious.")
+            parts.append("You enjoy gentle animal wordplay that fits your species. Keep it useful and ease off for serious topics.")
         }
         return parts.joined(separator: "\n\n")
     }
@@ -657,7 +646,7 @@ final class ByteModel: ObservableObject {
             saved = try JSONDecoder().decode([Turn].self, from: data)
         } catch {
             historyNeedsRecovery = true
-            storageError = "Couldn't read the saved conversation. Byte will preserve the original before saving a new chat. \(error.localizedDescription)"
+            storageError = "Couldn't read the saved conversation. Nooklings will preserve the original before saving a new chat. \(error.localizedDescription)"
             return
         }
         // drop a trailing empty Byte placeholder if we were quit mid-reply
@@ -925,7 +914,7 @@ final class ByteModel: ObservableObject {
         guard isCurrent(requestID) else { return }
         guard let key = apiKey() else {
             finish(requestID: requestID, responseID: responseID,
-                   failure: "Connect an Anthropic API key to chat with Byte.")
+                   failure: "Connect an Anthropic API key to chat with your companion.")
             return
         }
 
@@ -1051,7 +1040,7 @@ final class ByteModel: ObservableObject {
                     }
                 case "message_stop":
                     if stopReason == "max_tokens" {
-                        return result(.fail("The reply reached its output limit. Ask Byte to continue."))
+                        return result(.fail("The reply reached its output limit. Ask your companion to continue."))
                     }
                     guard emittedText else { return result(.fail("No answer was returned. Try again.")) }
                     return result(.done)

@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: byte-${{ github.workflow }}-${{ github.ref }}
+  group: nooklings-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -23,8 +23,27 @@ jobs:
       - name: Build app
         run: swift build
       - name: Run regression tests
+        env:
+          NOOKLINGS_SNAPSHOT_DIRECTORY: ${{ github.workspace }}/.artifacts/companion-previews
         run: swift test
       - name: Build release app bundle
         run: ./bundle.sh
       - name: Validate bundle metadata
-        run: plutil -lint Byte.app/Contents/Info.plist
+        run: |
+          plutil -lint Nooklings.app/Contents/Info.plist
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' Nooklings.app/Contents/Info.plist)" = Nooklings
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' Nooklings.app/Contents/Info.plist)" = com.ronnie.byte
+          test -x Nooklings.app/Contents/MacOS/Nooklings
+          test -s Nooklings.app/Contents/Resources/Nooklings.icns
+      - name: Verify bundled companion artwork
+        run: |
+          for animal in trex dolphin dog cat panda; do
+            test -f "Nooklings.app/Contents/Resources/Nooklings_Byte.bundle/Companions/${animal}.png"
+          done
+      - name: Upload native companion previews
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: companion-previews
+          path: .artifacts/companion-previews/
+          if-no-files-found: error
+          retention-days: 7

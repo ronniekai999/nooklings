@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct ByteApp: App {
+struct NooklingsApp: App {
     // The adaptor constructs the (main-actor) delegate on the main actor for us,
     // which avoids the actor-isolation error you get from top-level `AppDelegate()`.
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate

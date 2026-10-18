@@ -35,7 +35,7 @@ final class ChatGPTTests: XCTestCase {
         let values = Dictionary(uniqueKeysWithValues: URLComponents(url: url, resolvingAgainstBaseURL: false)!
             .queryItems!.map { ($0.name, $0.value ?? "") })
         XCTAssertEqual(values["client_id"], "dynamic_agent_client")
-        XCTAssertEqual(values["agent_name_hint"], "Byte")
+        XCTAssertEqual(values["agent_name_hint"], "Nooklings")
         XCTAssertEqual(values["resource"], "https://api.openai.com/v1")
         XCTAssertTrue(values["scope"]!.contains("chatgpt.tokens.use.direct"))
         XCTAssertEqual(values["code_challenge_method"], "S256")
