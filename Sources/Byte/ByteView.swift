@@ -306,7 +306,7 @@ struct ByteView: View {
             ChatPanel(model: model, focused: $inputFocused, accent: accent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, 16).padding(.bottom, 12)
-                .transition(.scale(scale: 0.9, anchor: .top).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.9, anchor: .top).combined(with: .opacity))
         } else if let q = quip {
             SpeechBubble(text: q, accent: accent)
                 .frame(width: 200)

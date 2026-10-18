@@ -23,6 +23,7 @@ jobs:
       - name: Build app
         run: swift build
       - name: Run regression tests
+        timeout-minutes: 5
         env:
           NOOKLINGS_SNAPSHOT_DIRECTORY: ${{ github.workspace }}/.artifacts/companion-previews
         run: swift test

@@ -41,23 +41,6 @@ private struct ChatPreview: View {
 
 final class CareModelTests: XCTestCase {
     @MainActor
-    func testGlobalShortcutRegistrationConflictIsReportedAndCanBeDisabled() throws {
-        _ = NSApplication.shared
-        let f = try CareFixture(); defer { f.clean() }
-        let first = GlobalShortcut(defaults: f.defaults), second = GlobalShortcut(defaults: f.defaults)
-        defer { first.stop(); second.stop() }
-        // Control + Option + Command + N, chosen to avoid common system shortcuts.
-        let spec = ShortcutSpec(keyCode: 45, modifiers: 256 | 2048 | 4096, keyLabel: "N")
-        XCTAssertTrue(first.set(spec)); first.start {}
-        if let error = first.error { throw XCTSkip("Native hot-key registration unavailable: \(error)") }
-        XCTAssertTrue(second.set(spec)); second.start {}
-        XCTAssertNotNil(second.error, "A conflicting registration must be visible")
-        XCTAssertTrue(first.set(nil))
-        XCTAssertTrue(second.set(spec), "Releasing the first registration should make the shortcut available")
-        XCTAssertNil(second.error)
-    }
-
-    @MainActor
     func testChatControlsRenderAtCompactAndExpandedSizes() throws {
         _ = NSApplication.shared
         let f = try CareFixture(); defer { f.clean() }

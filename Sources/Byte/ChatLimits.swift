@@ -26,7 +26,8 @@ enum ChatContext {
     /// Deliberately conservative text estimate: one token per UTF-8 byte, plus
     /// message framing and an image reserve. Provider counts can still differ.
     static func estimate(turns: [ByteModel.Turn], draft: String, pendingImage: Bool, system: String) -> Int {
-        turns.filter { $0.role == .user || $0.failure == nil }.reduce(1024 + system.utf8.count + draft.utf8.count + (pendingImage ? 8192 : 0)) {
+        let pending = draft.utf8.count + (pendingImage ? 8192 : 0) + (!draft.isEmpty || pendingImage ? 16 : 0)
+        return turns.filter { $0.role == .user || $0.failure == nil }.reduce(1024 + system.utf8.count + pending) {
             $0 + $1.text.utf8.count + 16 + ($1.imageId != nil || $1.imageB64 != nil ? 8192 : 0)
         }
     }

@@ -941,10 +941,14 @@ final class ByteModelTests: XCTestCase {
     func testCompletedStreamUsesSendTimeSettingsAndFinalUsage() async throws {
         let f = try Fixture()
         defer { f.cleanup() }
+        f.model.limits.outputTokens = 512
+        f.model.limits.searches = 1
         StubURLProtocol.handler = { stub in
             if let data = stub.requestBody(),
                let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 XCTAssertEqual(body["model"] as? String, "claude-sonnet-4-6")
+                XCTAssertEqual(body["max_tokens"] as? Int, 512)
+                XCTAssertEqual((body["tools"] as? [[String: Any]])?.first?["max_uses"] as? Int, 1)
             } else {
                 XCTFail("The request must carry a JSON payload.")
             }
@@ -962,6 +966,8 @@ final class ByteModelTests: XCTestCase {
         }
         f.model.draft = "Hello"
         f.model.send()
+        f.model.limits.outputTokens = 8192
+        f.model.limits.searches = 10
         f.defaults.set("claude-haiku-4-5-20251001", forKey: "byte.model")
         try await waitForFinish(f.model)
         XCTAssertEqual(f.model.turns.last?.text, "Hello")
