@@ -606,7 +606,7 @@ struct ByteView: View {
 
     /// Byte speaking up on his own (need reminders / friendly hellos).
     private func checkIn(_ text: String) {
-        guard !model.chatOpen else { return }
+        guard !model.chatOpen, !showCare else { return }
         if !isBusy && !reduceMotion && !model.pet.isResting { greet() }
         say(text)
     }

@@ -227,7 +227,8 @@ final class ByteModel: ObservableObject {
     /// One reservation shared by the hover bar, dashboard and keyboard actions.
     func beginCare(_ action: CareAction) -> UUID? {
         guard activeCare == nil else { return nil }
-        tickPet()
+        // Settle needs without firing a greeting/trick into the care animation.
+        pet.advance(to: now(), companion: companion)
         if let reason = pet.unavailableReason(for: action, companion: companion) {
             careFeedback = reason; return nil
         }

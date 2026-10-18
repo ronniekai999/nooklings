@@ -102,6 +102,19 @@ final class CareModelTests: XCTestCase {
     }
 
     @MainActor
+    func testStartingCareDoesNotLaunchACompetingCheckIn() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let model = f.model()
+        model.pet.hunger = 10
+        model.pet.lastCheckIn = .distantPast
+        var greeted = false
+        model.onCheckIn = { _ in greeted = true }
+        XCTAssertNotNil(model.beginCare(.meal))
+        XCTAssertFalse(greeted)
+        XCTAssertEqual(model.activeCare, .meal)
+    }
+
+    @MainActor
     func testCancelledAnimationDoesNotAwardCareOrAcceptStaleCompletion() throws {
         let f = try CareFixture(); defer { f.clean() }
         let model = f.model()
