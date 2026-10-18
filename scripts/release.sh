@@ -13,6 +13,7 @@ if [[ ! "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || [[ "$DEVELOPER_ID_APPLICATION" 
 fi
 export APP_VERSION BUILD_NUMBER
 UNIVERSAL=1 ./bundle.sh
+swift scripts/verify-bundle.swift Nooklings.app
 
 APP="Nooklings.app"
 OUT=".artifacts/releases"

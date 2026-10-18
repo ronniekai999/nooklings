@@ -77,7 +77,7 @@ struct ByteView: View {
         VStack(spacing: 4) {
             band
             bubbleArea
-            Spacer(minLength: 0)
+            if !model.chatOpen { Spacer(minLength: 0) }
         }
         .padding(.top, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

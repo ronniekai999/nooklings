@@ -41,14 +41,12 @@ jobs:
           lipo Nooklings.app/Contents/MacOS/Nooklings -verify_arch arm64 x86_64
           bash -n scripts/release.sh
       - name: Verify bundled companion artwork
-        run: |
-          for animal in trex dolphin dog cat panda; do
-            test -f "Nooklings.app/Contents/Resources/Nooklings_Byte.bundle/Companions/${animal}.png"
-          done
+        run: swift scripts/verify-bundle.swift Nooklings.app
       - name: Upload native companion previews
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: companion-previews
           path: .artifacts/companion-previews/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7

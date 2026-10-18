@@ -381,7 +381,8 @@ final class ByteModel: ObservableObject {
                 try Task.checkCancellation()
                 anthropicModels = choices
                 anthropicModelsCheckedAt = now()
-                if !choices.contains(where: { $0.id == model }) {
+                let savedClaudeModel = defaults.string(forKey: "byte.model") ?? "claude-sonnet-4-6"
+                if !choices.contains(where: { $0.id == savedClaudeModel }) {
                     modelCatalogError = "Your saved model isn't available. Choose a model returned by your API key."
                 }
             } catch is CancellationError { return }
@@ -400,7 +401,7 @@ final class ByteModel: ObservableObject {
     func selectProvider(_ value: AIProvider) {
         guard !isStreaming, !isConnecting else { return }
         if provider != value {
-            sessionCost = 0; sessionInTok = 0; sessionOutTok = 0; sessionSearches = 0
+            sessionCost = 0; sessionCostIncomplete = false; sessionInTok = 0; sessionOutTok = 0; sessionSearches = 0
         }
         provider = value
         defaults.set(value.rawValue, forKey: "byte.provider")
@@ -443,7 +444,7 @@ final class ByteModel: ObservableObject {
                 try await chatGPT.signIn(accountID: accountID, openBrowser: { NSWorkspace.shared.open($0) })
                 try Task.checkCancellation()
                 if provider != .chatGPT {
-                    sessionCost = 0; sessionInTok = 0; sessionOutTok = 0; sessionSearches = 0
+                    sessionCost = 0; sessionCostIncomplete = false; sessionInTok = 0; sessionOutTok = 0; sessionSearches = 0
                 }
                 provider = .chatGPT
                 chatGPTUsageBlocked = false

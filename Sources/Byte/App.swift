@@ -170,8 +170,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
         let visible = sender.screen?.visibleFrame.size ?? frameSize
-        return NSSize(width: min(visible.width, max(360, frameSize.width)),
-                      height: min(visible.height, max(480, frameSize.height)))
+        return NSSize(width: min(visible.width, min(1000, max(360, frameSize.width))),
+                      height: min(visible.height, min(1200, max(480, frameSize.height))))
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
@@ -187,7 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func resizeChat(by delta: CGSize) {
         guard expanded else { return }
         let f = window.frame
-        let size = NSSize(width: max(360, f.width + delta.width), height: max(480, f.height + delta.height))
+        let size = NSSize(width: min(1000, max(360, f.width + delta.width)), height: min(1200, max(480, f.height + delta.height)))
         if let frame = WindowPlacement.frame(anchor: CGPoint(x: f.midX, y: f.maxY), size: size,
                                              displays: NSScreen.screens.map(\.visibleFrame)) {
             window.setFrame(frame, display: true)

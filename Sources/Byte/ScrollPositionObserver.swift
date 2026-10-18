@@ -14,7 +14,8 @@ struct ScrollPositionObserver: NSViewRepresentable {
             super.viewDidMoveToWindow()
             if let observation { NotificationCenter.default.removeObserver(observation); self.observation = nil }
             DispatchQueue.main.async { [weak self] in
-                guard let self, let scroll = self.enclosingScrollView else { return }
+                guard let self, self.window != nil, let scroll = self.enclosingScrollView else { return }
+                if let observation = self.observation { NotificationCenter.default.removeObserver(observation) }
                 self.observation = NotificationCenter.default.addObserver(
                     forName: NSScrollView.didLiveScrollNotification, object: scroll, queue: .main
                 ) { [weak self, weak scroll] _ in
