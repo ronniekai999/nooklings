@@ -1,0 +1,80 @@
+name: Signed Mac release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: App version (major.minor.patch)
+        required: true
+        default: '1.1.0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nooklings-signed-release
+  cancel-in-progress: false
+
+jobs:
+  sign-and-notarize:
+    runs-on: macos-14
+    timeout-minutes: 45
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      NOTARY_KEYCHAIN_PROFILE: NooklingsRelease
+      NOTARY_KEYCHAIN_PATH: ${{ runner.temp }}/nooklings-release.keychain-db
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Validate and import release credentials
+        env:
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+          for name in DEVELOPER_ID_APPLICATION APPLE_TEAM_ID DEVELOPER_ID_P12_BASE64 DEVELOPER_ID_P12_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER; do
+            if [[ -z "${!name:-}" ]]; then echo "Missing release secret: $name" >&2; exit 1; fi
+          done
+          umask 077
+          RELEASE_KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+          echo "::add-mask::$RELEASE_KEYCHAIN_PASSWORD"
+          printf '%s' "$DEVELOPER_ID_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/nooklings-signing.p12"
+          printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/nooklings-notary.p8"
+          security create-keychain -p "$RELEASE_KEYCHAIN_PASSWORD" "$NOTARY_KEYCHAIN_PATH"
+          security set-keychain-settings -lut 3600 "$NOTARY_KEYCHAIN_PATH"
+          security unlock-keychain -p "$RELEASE_KEYCHAIN_PASSWORD" "$NOTARY_KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/nooklings-signing.p12" -k "$NOTARY_KEYCHAIN_PATH" -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$RELEASE_KEYCHAIN_PASSWORD" "$NOTARY_KEYCHAIN_PATH" >/dev/null
+          security list-keychains -d user -s "$NOTARY_KEYCHAIN_PATH" login.keychain-db
+          xcrun notarytool store-credentials "$NOTARY_KEYCHAIN_PROFILE" --key "$RUNNER_TEMP/nooklings-notary.p8" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" --keychain "$NOTARY_KEYCHAIN_PATH"
+      - name: Run native regression tests
+        run: swift test
+      - name: Build, sign, notarize, and verify
+        run: ./scripts/release.sh "$RELEASE_VERSION"
+      - name: Upload verified download and verification records
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Nooklings-${{ inputs.version }}-notarized
+          path: .artifacts/releases/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: notarization-diagnostics
+          path: |
+            .artifacts/releases/*.json
+            .artifacts/releases/*.txt
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Remove temporary signing credentials
+        if: always()
+        run: |
+          security delete-keychain "$NOTARY_KEYCHAIN_PATH" || true
+          rm -f "$RUNNER_TEMP/nooklings-signing.p12" "$RUNNER_TEMP/nooklings-notary.p8"

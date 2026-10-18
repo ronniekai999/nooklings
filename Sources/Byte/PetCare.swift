@@ -67,16 +67,31 @@ struct PetState: Codable {
     mutating func advance(to now: Date, companion: Companion) {
         guard now > lastTick else { return } // A clock rollback must not duplicate recovery.
         let hours = now.timeIntervalSince(lastTick) / 3600
-        let sleepSeconds = restingUntil.map { max(0, min(now, $0).timeIntervalSince(lastTick)) } ?? 0
-        let awakeHours = max(0, hours - sleepSeconds / 3600)
+        let sleepHours = restingUntil.map { max(0, min(now, $0).timeIntervalSince(lastTick) / 3600) } ?? 0
         let decay = companion.decayPerHour
-        hunger -= hours * decay.food
-        thirst -= hours * decay.water
-        energy = min(100, energy + sleepSeconds / 60 * companion.napGainPerMinute)
-        energy -= awakeHours * decay.energy
-        // Exponential settling avoids happiness changing faster with more frequent ticks.
-        let target = (max(0, hunger) + max(0, thirst) + max(0, energy)) / 3
-        happiness += (target - happiness) * (1 - exp(-hours * 0.6))
+        let recovery = companion.napGainPerMinute * 60
+        let restedEnergy = min(100, energy + sleepHours * recovery)
+        func needs(at t: Double) -> (food: Double, water: Double, energy: Double) {
+            (max(0, hunger - t * decay.food), max(0, thirst - t * decay.water),
+             max(0, min(100, energy + min(t, sleepHours) * recovery) - max(0, t - sleepHours) * decay.energy))
+        }
+        // The target is linear between need floors, the energy cap, and waking.
+        // Integrate that moving target exactly, so offline and per-second ticks agree.
+        var boundaries = [0, hours, hunger / decay.food, thirst / decay.water,
+                          sleepHours, sleepHours + restedEnergy / decay.energy]
+        if sleepHours > 0 { boundaries.append(min(sleepHours, (100 - energy) / recovery)) }
+        boundaries = Array(Set(boundaries.filter { $0 >= 0 && $0 <= hours })).sorted()
+        for (a, b) in zip(boundaries, boundaries.dropFirst()) {
+            let dt = b - a
+            let start = needs(at: a), end = needs(at: b)
+            let target = (start.food + start.water + start.energy) / 3
+            let targetEnd = (end.food + end.water + end.energy) / 3
+            let slope = (targetEnd - target) / dt
+            let weight = -expm1(-0.6 * dt)
+            happiness += (target - happiness) * weight + slope * (dt - weight / 0.6)
+        }
+        let final = needs(at: hours)
+        hunger = final.food; thirst = final.water; energy = final.energy
         if let end = restingUntil, now >= end { restingUntil = nil }
         lastTick = now
         normalize()

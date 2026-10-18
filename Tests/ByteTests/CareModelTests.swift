@@ -32,7 +32,97 @@ private struct CareFixture {
     }
 }
 
+@MainActor
+private struct ChatPreview: View {
+    @ObservedObject var model: ByteModel
+    @FocusState private var focused: Bool
+    var body: some View { ChatPanel(model: model, focused: $focused, accent: .green).padding(16) }
+}
+
 final class CareModelTests: XCTestCase {
+    @MainActor
+    func testGlobalShortcutRegistrationConflictIsReportedAndCanBeDisabled() throws {
+        _ = NSApplication.shared
+        let f = try CareFixture(); defer { f.clean() }
+        let first = GlobalShortcut(defaults: f.defaults), second = GlobalShortcut(defaults: f.defaults)
+        defer { first.stop(); second.stop() }
+        // Control + Option + Command + N, chosen to avoid common system shortcuts.
+        let spec = ShortcutSpec(keyCode: 45, modifiers: 256 | 2048 | 4096, keyLabel: "N")
+        XCTAssertTrue(first.set(spec)); first.start {}
+        if let error = first.error { throw XCTSkip("Native hot-key registration unavailable: \(error)") }
+        XCTAssertTrue(second.set(spec)); second.start {}
+        XCTAssertNotNil(second.error, "A conflicting registration must be visible")
+        XCTAssertTrue(first.set(nil))
+        XCTAssertTrue(second.set(spec), "Releasing the first registration should make the shortcut available")
+        XCTAssertNil(second.error)
+    }
+
+    @MainActor
+    func testChatControlsRenderAtCompactAndExpandedSizes() throws {
+        _ = NSApplication.shared
+        let f = try CareFixture(); defer { f.clean() }
+        let model = f.model()
+        model.hasKey = true
+        model.turns = [.init(role: .user, text: "Help me plan a calm afternoon."),
+                       .init(role: .byte, text: "Start with one small task, take a walk, then leave a little room for yourself. I’ll keep you company. 🦖")]
+        for wide in [false, true] {
+            let size = NSSize(width: wide ? 640 : 360, height: wide ? 620 : 440)
+            let view = ChatPreview(model: model).environment(\.colorScheme, wide ? .light : .dark)
+                .background(wide ? Color(white: 0.95) : Color(white: 0.12))
+            let host = NSHostingView(rootView: view)
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = host
+            window.orderFront(nil)
+            host.layoutSubtreeIfNeeded()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+            XCTAssertGreaterThan(data.count, 1000)
+            if let directory = ProcessInfo.processInfo.environment["NOOKLINGS_SNAPSHOT_DIRECTORY"] {
+                let url = URL(fileURLWithPath: directory)
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                try data.write(to: url.appendingPathComponent(wide ? "chat-expanded-light.png" : "chat-compact-dark.png"))
+            }
+            window.orderOut(nil)
+        }
+    }
+
+    @MainActor
+    func testShortcutOpensAndRefocusesWithoutTogglingOrReadingContext() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let model = f.model()
+        var opens = 0, focuses = 0
+        model.onChatOpenChanged = { if $0 { opens += 1 } }
+        model.onFocusChat = { focuses += 1 }
+        model.draft = "Keep my draft"
+        model.openAndFocusChat()
+        let first = model.focusRequest
+        model.openAndFocusChat()
+        XCTAssertTrue(model.chatOpen)
+        XCTAssertEqual(opens, 1)
+        XCTAssertEqual(focuses, 2)
+        XCTAssertNotEqual(first, model.focusRequest)
+        XCTAssertEqual(model.draft, "Keep my draft")
+        XCTAssertTrue(model.turns.isEmpty)
+        XCTAssertNil(model.pendingImage)
+        model.toggleChat()
+        XCTAssertEqual(model.draft, "Keep my draft")
+    }
+
+    @MainActor
+    func testShortcutPreferencePersistsAndRejectsUnmodifiedKeys() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let shortcut = GlobalShortcut(defaults: f.defaults)
+        XCTAssertFalse(shortcut.set(ShortcutSpec(keyCode: 0, modifiers: 0, keyLabel: "A")))
+        XCTAssertNotNil(shortcut.error)
+        XCTAssertTrue(shortcut.set(.standard))
+        XCTAssertEqual(GlobalShortcut(defaults: f.defaults).configuration, .standard)
+        XCTAssertTrue(shortcut.set(nil))
+        XCTAssertNil(GlobalShortcut(defaults: f.defaults).configuration)
+    }
+
     @MainActor
     func testCareDashboardRendersForEveryCompanion() throws {
         let f = try CareFixture(); defer { f.clean() }
@@ -161,5 +251,26 @@ final class CareModelTests: XCTestCase {
         model.prepareForTermination()
         XCTAssertEqual(try Data(contentsOf: file), bad)
         XCTAssertNotNil(model.storageError)
+    }
+
+    @MainActor
+    func testCorruptCurrentSaveAllowsHealthyCompanionAndFuturePersistence() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let bad = Data("keep this damaged save".utf8)
+        let file = f.root.appendingPathComponent("pet.json")
+        try bad.write(to: file)
+        let model = f.model()
+        XCTAssertNil(model.beginCare(.meal), "Don't pretend to save care on a protected file")
+        XCTAssertTrue(model.selectCompanion(.cat))
+        model.pet.hunger = 20
+        model.completeCare(try XCTUnwrap(model.beginCare(.meal)))
+        model.prepareForTermination()
+        XCTAssertEqual(try Data(contentsOf: file), bad)
+        let reloaded = f.model()
+        XCTAssertEqual(reloaded.companion, .cat)
+        XCTAssertEqual(reloaded.pet.hunger, model.pet.hunger)
+        XCTAssertEqual(reloaded.pet.careCount, 1)
+        XCTAssertFalse(reloaded.selectCompanion(.trex))
+        XCTAssertEqual(reloaded.companion, .cat)
     }
 }

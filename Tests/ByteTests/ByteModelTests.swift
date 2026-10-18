@@ -100,6 +100,132 @@ private struct Fixture {
 
 final class ByteModelTests: XCTestCase {
     @MainActor
+    func testLocateMissingImageSavesFreshSidecarAndPreservesArchiveReference() async throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        let originalID = UUID().uuidString
+        let turn = ByteModel.Turn(role: .user, text: "See picture", imageId: originalID, imageType: "image/jpeg")
+        let record = try JSONEncoder().encode([turn])
+        try record.write(to: f.root.appendingPathComponent("history.json"))
+        let archive = f.root.appendingPathComponent("archives/chat-original.json")
+        try FileManager.default.createDirectory(at: archive.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try record.write(to: archive)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 8, pixelsHigh: 8,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        let image = f.root.appendingPathComponent("replacement.png")
+        try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: image)
+        let loaded = f.reloaded()
+        loaded.attachImage(url: image, replacing: turn.id)
+        let deadline = Date().addingTimeInterval(5)
+        while loaded.isPreparingImage && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertFalse(loaded.isPreparingImage)
+        XCTAssertFalse(loaded.turns[0].imageMissing)
+        XCTAssertNotNil(loaded.turns[0].imageB64)
+        XCTAssertNotEqual(loaded.turns[0].imageId, originalID)
+        XCTAssertFalse(f.reloaded().turns[0].imageMissing)
+        XCTAssertEqual(try Data(contentsOf: archive), record)
+    }
+
+    @MainActor
+    func testMissingAttachmentIsVisibleBlocksSendingAndCanBeRemovedPersistently() throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        let turn = ByteModel.Turn(role: .user, text: "Describe this", imageId: UUID().uuidString, imageType: "image/jpeg")
+        try JSONEncoder().encode([turn]).write(to: f.root.appendingPathComponent("history.json"))
+        let loaded = f.reloaded()
+        XCTAssertTrue(loaded.turns[0].imageMissing)
+        XCTAssertTrue(loaded.sendBlockReason?.contains("missing") == true)
+        loaded.removeMissingImage(from: turn.id)
+        XCTAssertFalse(loaded.turns[0].imageMissing)
+        XCTAssertNil(loaded.turns[0].imageId)
+        XCTAssertEqual(loaded.turns[0].text, "Describe this")
+        XCTAssertNil(f.reloaded().turns[0].imageId)
+    }
+
+    @MainActor
+    func testCancelledImagePreparationCannotReappearInNewChat() async throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        f.model.attachImage(data: Data("bad image".utf8))
+        f.model.newChat()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertFalse(f.model.isPreparingImage)
+        XCTAssertNil(f.model.pendingImageB64)
+        XCTAssertNil(f.model.attachmentError)
+    }
+
+    @MainActor
+    func testContextAndSpendGuardsKeepDraftAndNeverSendBlockedRequests() throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        StubURLProtocol.handler = { _ in XCTFail("Blocked sends must not use the network") }
+        f.model.limits.contextTokens = 4000
+        f.model.turns = [.init(role: .user, text: String(repeating: "long context ", count: 1000))]
+        f.model.draft = "Keep this question"
+        f.model.send()
+        XCTAssertEqual(f.model.turns.count, 1)
+        XCTAssertEqual(f.model.draft, "Keep this question")
+        XCTAssertTrue(f.model.sendNotice?.contains("context limit") == true)
+        f.model.turns = []
+        f.model.limits.dailyDollars = 0.001
+        f.model.send()
+        XCTAssertTrue(f.model.turns.isEmpty)
+        XCTAssertTrue(f.model.sendNotice?.contains("spending guard") == true)
+        XCTAssertFalse(f.model.isStreaming)
+    }
+
+    @MainActor
+    func testSummaryArchivesOriginalAndPreservesUnsentDraft() throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        f.model.turns = [.init(role: .user, text: "Original request"), .init(role: .byte, text: "Original reply")]
+        f.model.draft = "Follow-up"
+        XCTAssertTrue(f.model.startChatWithSummary("Keep the decision"))
+        XCTAssertEqual(f.model.turns.count, 1)
+        XCTAssertTrue(f.model.turns[0].text.contains("Keep the decision"))
+        XCTAssertEqual(f.model.draft, "Follow-up")
+        let archive = try XCTUnwrap(f.model.archiveList().first)
+        XCTAssertEqual(archive.count, 2)
+        XCTAssertTrue(f.model.reopenArchive(id: archive.id))
+        XCTAssertEqual(f.model.turns.map(\.text), ["Original request", "Original reply"])
+    }
+
+    @MainActor
+    func testSummaryFailureRetainsFullThread() throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        f.model.turns = [.init(role: .user, text: "Do not lose this")]
+        try Data("not a directory".utf8).write(to: f.root.appendingPathComponent("archives"))
+        XCTAssertFalse(f.model.startChatWithSummary("Shorter"))
+        XCTAssertEqual(f.model.turns.first?.text, "Do not lose this")
+        XCTAssertNotNil(f.model.storageError)
+    }
+
+    @MainActor
+    func testAnthropicDiscoveryPaginatesExcludesRetiredAndDoesNotChangeSavedModel() async throws {
+        let f = try Fixture(); defer { f.cleanup() }
+        var requests = 0
+        StubURLProtocol.handler = { stub in
+            requests += 1
+            XCTAssertEqual(stub.request.value(forHTTPHeaderField: "x-api-key"), "test-key")
+            if requests == 1 {
+                stub.reply(#"{"data":[{"id":"retired","display_name":"Retired","lifecycle":"retired"}],"has_more":true,"last_id":"retired"}"#)
+            } else {
+                XCTAssertTrue(stub.request.url?.query?.contains("after_id=retired") == true)
+                stub.reply(#"{"data":[{"id":"available","display_name":"Available","capabilities":{"image_input":{"supported":false}}}],"has_more":false}"#)
+            }
+        }
+        f.model.reloadAnthropicModels()
+        let deadline = Date().addingTimeInterval(5)
+        while f.model.isLoadingAnthropicModels && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertFalse(f.model.isLoadingAnthropicModels)
+        XCTAssertEqual(requests, 2)
+        XCTAssertEqual(f.model.anthropicModels.map(\.id), ["available"])
+        XCTAssertEqual(f.model.model, "claude-sonnet-4-6")
+        XCTAssertFalse(f.model.canSend, "Do not silently switch models or billing")
+        f.model.selectAnthropicModel("available")
+        XCTAssertTrue(f.model.canSend)
+        XCTAssertTrue(f.model.pricingStatus.contains("unknown"))
+        f.model.limits.dailyDollars = 10
+        XCTAssertNotNil(f.model.sendBlockReason)
+    }
+
+    @MainActor
     private func waitForFinish(_ model: ByteModel) async throws {
         let deadline = Date().addingTimeInterval(5)
         while model.isStreaming && Date() < deadline {
@@ -767,7 +893,7 @@ final class ByteModelTests: XCTestCase {
     }
 
     @MainActor
-    func testHaikuImageAttachmentKeepsHaikuSelected() throws {
+    func testHaikuImageAttachmentKeepsHaikuSelected() async throws {
         let f = try Fixture()
         defer { f.cleanup() }
         f.defaults.set("claude-haiku-4-5-20251001", forKey: "byte.model")
@@ -777,7 +903,11 @@ final class ByteModelTests: XCTestCase {
             bytesPerRow: 0, bitsPerPixel: 0))
         let image = NSImage(size: NSSize(width: 4, height: 4))
         image.addRepresentation(bitmap)
-        f.model.attachImage(image)
+        f.model.attachImage(data: try XCTUnwrap(image.tiffRepresentation))
+        let deadline = Date().addingTimeInterval(5)
+        while f.model.isPreparingImage && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertFalse(f.model.isPreparingImage)
+        XCTAssertNil(f.model.attachmentError)
         XCTAssertNotNil(f.model.pendingImageB64)
         XCTAssertEqual(f.model.model, "claude-haiku-4-5-20251001")
     }
@@ -811,10 +941,14 @@ final class ByteModelTests: XCTestCase {
     func testCompletedStreamUsesSendTimeSettingsAndFinalUsage() async throws {
         let f = try Fixture()
         defer { f.cleanup() }
+        f.model.limits.outputTokens = 512
+        f.model.limits.searches = 1
         StubURLProtocol.handler = { stub in
             if let data = stub.requestBody(),
                let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 XCTAssertEqual(body["model"] as? String, "claude-sonnet-4-6")
+                XCTAssertEqual(body["max_tokens"] as? Int, 512)
+                XCTAssertEqual((body["tools"] as? [[String: Any]])?.first?["max_uses"] as? Int, 1)
             } else {
                 XCTFail("The request must carry a JSON payload.")
             }
@@ -832,6 +966,8 @@ final class ByteModelTests: XCTestCase {
         }
         f.model.draft = "Hello"
         f.model.send()
+        f.model.limits.outputTokens = 8192
+        f.model.limits.searches = 10
         f.defaults.set("claude-haiku-4-5-20251001", forKey: "byte.model")
         try await waitForFinish(f.model)
         XCTAssertEqual(f.model.turns.last?.text, "Hello")

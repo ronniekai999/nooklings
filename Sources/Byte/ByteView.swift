@@ -19,7 +19,7 @@ struct ByteView: View {
     @State private var isBusy = false
     @State private var lastMove = -1
     @State private var showHappy = false
-    @AppStorage("byte.sounds") private var soundsOn = true
+    @AppStorage("byte.sounds", store: AppPreferences.shared) private var soundsOn = true
     @State private var rippleScale: CGFloat = 0.2
     @State private var rippleOpacity: Double = 0
 
@@ -77,7 +77,7 @@ struct ByteView: View {
         VStack(spacing: 4) {
             band
             bubbleArea
-            Spacer(minLength: 0)
+            if !model.chatOpen { Spacer(minLength: 0) }
         }
         .padding(.top, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -115,10 +115,20 @@ struct ByteView: View {
         .onChange(of: model.companion) { _, _ in
             quip = nil; showHappy = false; secondsToNext = 12
         }
+        .onChange(of: model.provider) { _, provider in
+            if provider == .anthropic, model.hasKey, model.anthropicModelsCheckedAt == nil { model.reloadAnthropicModels() }
+        }
         .onChange(of: model.chatOpen) { _, open in
             guard open else { return }
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 50_000_000)
+                inputFocused = true
+            }
+        }
+        .onChange(of: model.focusRequest) { _, _ in
+            inputFocused = false
+            Task { @MainActor in
+                await Task.yield()
                 inputFocused = true
             }
         }
@@ -186,10 +196,15 @@ struct ByteView: View {
                     Button("Quit Nooklings") { NSApp.terminate(nil) }
                 }
                 .help("Hover for actions · click to chat · drag to move")
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel(model.companion.name)
                 .accessibilityHint("Opens or closes chat")
                 .accessibilityAddTraits(.isButton)
                 .accessibilityAction { model.toggleChat() }
+                .accessibilityValue(model.pet.status)
+                .accessibilityAction(named: Text("Open care")) { showCare = true }
+                .focusable()
+                .onKeyPress(keys: [.return, .space]) { _ in model.toggleChat(); return .handled }
 
             if let action = careScene {
                 PropSprite(prop: .object(for: action, companion: model.companion), size: 30)
@@ -289,8 +304,9 @@ struct ByteView: View {
     @ViewBuilder private var bubbleArea: some View {
         if model.chatOpen {
             ChatPanel(model: model, focused: $inputFocused, accent: accent)
-                .frame(width: 320)
-                .transition(.scale(scale: 0.9, anchor: .top).combined(with: .opacity))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 16).padding(.bottom, 12)
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.9, anchor: .top).combined(with: .opacity))
         } else if let q = quip {
             SpeechBubble(text: q, accent: accent)
                 .frame(width: 200)
@@ -323,27 +339,9 @@ struct ByteView: View {
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
-        guard let p = providers.first else { return false }
-        if p.canLoadObject(ofClass: NSImage.self) {
-            _ = p.loadObject(ofClass: NSImage.self) { obj, _ in
-                guard let img = obj as? NSImage else { return }
-                Task { @MainActor in attach(img) }
-            }
-            return true
-        }
-        if p.canLoadObject(ofClass: NSURL.self) {
-            _ = p.loadObject(ofClass: NSURL.self) { obj, _ in
-                guard let nsurl = obj as? NSURL, let img = NSImage(contentsOf: nsurl as URL) else { return }
-                Task { @MainActor in attach(img) }
-            }
-            return true
-        }
-        return false
-    }
-
-    private func attach(_ img: NSImage) {
-        model.attachImage(img)
-        if !model.chatOpen { model.toggleChat() }
+        guard !model.isStreaming, AttachmentInput.load(providers, into: model) else { return false }
+        model.openAndFocusChat()
+        return true
     }
 
     // MARK: tricks
@@ -634,6 +632,8 @@ struct ChatPanel: View {
     @State private var dots = ""
     @State private var showSettings = false
     @State private var showArchives = false
+    @State private var followsLatest = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let dotTimer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -658,7 +658,18 @@ struct ChatPanel: View {
             }
             if model.hasConnection {
                 transcript
+                if model.isPreparingImage {
+                    HStack {
+                        ProgressView().controlSize(.small)
+                        Text("Preparing image…").font(.caption)
+                        Button("Cancel") { model.clearPendingImage() }
+                    }
+                }
+                if let error = model.attachmentError {
+                    Text(error).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                }
                 if model.pendingImage != nil { pendingImageChip }
+                ContextControls(model: model)
                 inputBar
                 if model.provider == .chatGPT {
                     HStack {
@@ -677,6 +688,16 @@ struct ChatPanel: View {
             } else {
                 signIn
             }
+            HStack {
+                Spacer()
+                Menu {
+                    Button("Larger chat") { model.onResizeChat?(CGSize(width: 100, height: 100)) }
+                    Button("Smaller chat") { model.onResizeChat?(CGSize(width: -100, height: -100)) }
+                } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
+                .menuStyle(.borderlessButton).fixedSize()
+                .accessibilityLabel("Resize chat")
+                .help("Resize chat here, or drag a window edge")
+            }
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.ultraThinMaterial))
@@ -687,11 +708,7 @@ struct ChatPanel: View {
             WebLinks.canOpen(url) ? .systemAction : .discarded
         })
         .onPasteCommand(of: [.image]) { providers in
-            guard let p = providers.first, p.canLoadObject(ofClass: NSImage.self) else { return }
-            _ = p.loadObject(ofClass: NSImage.self) { obj, _ in
-                guard let img = obj as? NSImage else { return }
-                Task { @MainActor in model.attachImage(img) }
-            }
+            if !model.isStreaming { AttachmentInput.load(providers, into: model) }
         }
         .onReceive(dotTimer) { _ in
             guard model.isThinking || model.searching else { if !dots.isEmpty { dots = "" }; return }
@@ -709,7 +726,7 @@ struct ChatPanel: View {
         HStack(spacing: 8) {
             Text(model.companion.name).font(.system(size: 11, weight: .semibold, design: .rounded))
             Spacer()
-            Text(model.model).font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
+            Text(model.model).font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             Button { showSettings.toggle() } label: { Image(systemName: "gearshape") }
                 .buttonStyle(.plain).foregroundStyle(.secondary)
                 .help("Settings")
@@ -751,7 +768,7 @@ struct ChatPanel: View {
                 VStack(alignment: .leading, spacing: 8) {
                     if model.turns.isEmpty {
                         Text("Ask me anything — I'll keep it short, and I'll remember the thread 🦖")
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.system(size: 14, design: .rounded))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -761,14 +778,27 @@ struct ChatPanel: View {
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .padding(.vertical, 2)
+                .background(ScrollPositionObserver { followsLatest = $0 })
             }
-            .frame(maxHeight: 240)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .bottomTrailing) {
+                if !followsLatest {
+                    Button("Jump to latest") {
+                        followsLatest = true
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }.buttonStyle(.bordered).padding(4)
+                }
+            }
             .onChange(of: model.turns.last?.text) {
-                withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                if followsLatest {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                }
             }
             .onChange(of: model.turns.count) {
-                withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                if model.isStreaming && model.turns.last?.text.isEmpty == true { followsLatest = true }
+                if followsLatest { proxy.scrollTo("bottom", anchor: .bottom) }
             }
+            .onAppear { proxy.scrollTo("bottom", anchor: .bottom) }
         }
     }
 
@@ -789,16 +819,25 @@ struct ChatPanel: View {
                                 .frame(maxWidth: 180, maxHeight: 180)
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
+                        if turn.imageMissing {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Image unavailable", systemImage: "photo.badge.exclamationmark")
+                                HStack {
+                                    Button("Locate image…") { AttachmentInput.choose(for: model, replacing: turn.id) }
+                                    Button("Remove attachment") { model.removeMissingImage(from: turn.id) }
+                                }.buttonStyle(.bordered).disabled(model.isStreaming || model.isPreparingImage)
+                            }.font(.caption).accessibilityElement(children: .contain)
+                        }
                         if !turn.text.isEmpty {
                             Text(turn.text)
-                                .font(.system(size: 12, design: .rounded))
+                                .font(.system(size: 14, design: .rounded))
                                 .foregroundStyle(.white)
                                 .textSelection(.enabled)
                         }
                     }
                 } else if showThinking {
                     Text("\(statusLabel)\(dots)")
-                        .font(.system(size: 12, design: .rounded))
+                        .font(.system(size: 14, design: .rounded))
                         .foregroundStyle(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
@@ -820,7 +859,7 @@ struct ChatPanel: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(isUser ? accent : Color.primary.opacity(0.08))
             )
-            .frame(maxWidth: 236, alignment: isUser ? .trailing : .leading)
+            .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
             .contextMenu { if !turn.text.isEmpty { Button("Copy") { copyText(turn.text) } } }
             if !isUser { Spacer(minLength: 28) }
         }
@@ -833,6 +872,11 @@ struct ChatPanel: View {
 
     private var inputBar: some View {
         HStack(spacing: 6) {
+            Button { AttachmentInput.choose(for: model) } label: { Image(systemName: "paperclip") }
+                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .accessibilityLabel("Choose image file")
+                .help("Choose an image file")
+                .disabled(model.isStreaming || model.isPreparingImage)
             Button { pasteImage() } label: {
                 Image(systemName: "doc.on.clipboard").font(.system(size: 13))
             }
@@ -843,7 +887,7 @@ struct ChatPanel: View {
             .disabled(model.isStreaming)
             TextField("Ask \(model.companion.name)…", text: $model.draft)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12, design: .rounded))
+                .font(.system(size: 14, design: .rounded))
                 .focused(focused)
                 .onSubmit { model.send() }
                 .disabled(model.isStreaming)
@@ -870,7 +914,7 @@ struct ChatPanel: View {
     }
 
     private func pasteImage() {
-        if let img = NSImage(pasteboard: .general) { model.attachImage(img) }
+        AttachmentInput.paste(into: model)
     }
 
     private var canSend: Bool {
@@ -900,7 +944,7 @@ struct ChatPanel: View {
         let toks = model.sessionInTok + model.sessionOutTok
         return HStack(spacing: 4) {
             if model.provider == .anthropic {
-                Text("≈ \(costString(model.sessionCost))")
+                Text(model.sessionCostIncomplete ? "Cost incomplete" : "≈ \(costString(model.sessionCost))")
                 Text("·").foregroundStyle(.tertiary)
             }
             Text("\(tokString(toks)) tokens")
@@ -991,7 +1035,7 @@ struct MarkdownText: View {
         switch block {
         case .paragraph(let s):
             Text(inline(s))
-                .font(.system(size: 12, design: .rounded))
+                .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(.primary)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1006,9 +1050,9 @@ struct MarkdownText: View {
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(items.indices, id: \.self) { i in
                     HStack(alignment: .top, spacing: 6) {
-                        Text("•").font(.system(size: 12, design: .rounded)).foregroundStyle(.secondary)
+                        Text("•").font(.system(size: 14, design: .rounded)).foregroundStyle(.secondary)
                         Text(inline(items[i]))
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.system(size: 14, design: .rounded))
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -1018,9 +1062,9 @@ struct MarkdownText: View {
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(items.indices, id: \.self) { i in
                     HStack(alignment: .top, spacing: 6) {
-                        Text("\(i + 1).").font(.system(size: 12, design: .rounded)).foregroundStyle(.secondary)
+                        Text("\(i + 1).").font(.system(size: 14, design: .rounded)).foregroundStyle(.secondary)
                         Text(inline(items[i]))
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.system(size: 14, design: .rounded))
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -1227,12 +1271,10 @@ struct ConnectionView: View {
 @MainActor
 struct SettingsView: View {
     @ObservedObject var byte: ByteModel
-    @AppStorage("byte.webSearch") private var webSearch = true
-    @AppStorage("byte.sounds") private var sounds = true
-    @AppStorage("byte.checkins") private var checkins = true
-    @AppStorage("byte.puns") private var puns = 2
-    @AppStorage("byte.model") private var model = "claude-sonnet-4-6"
-    @AppStorage("byte.effort") private var effort = "high"
+    @AppStorage("byte.webSearch", store: AppPreferences.shared) private var webSearch = true
+    @AppStorage("byte.sounds", store: AppPreferences.shared) private var sounds = true
+    @AppStorage("byte.checkins", store: AppPreferences.shared) private var checkins = true
+    @AppStorage("byte.puns", store: AppPreferences.shared) private var puns = 2
     @State private var loginStatus = SMAppService.mainApp.status
     @State private var loginError: String?
 
@@ -1254,6 +1296,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 12) {
             Text("Nooklings settings")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -1261,9 +1304,10 @@ struct SettingsView: View {
             ConnectionView(model: byte)
             Divider()
 
-            Toggle("Web search", isOn: $webSearch)
+            Toggle("Web search", isOn: $webSearch).disabled(!byte.supportsWebSearch || byte.isStreaming)
             Toggle("Sound effects", isOn: $sounds)
             Toggle("Random check-ins", isOn: $checkins)
+            ShortcutSettings(shortcut: byte.shortcut)
             Toggle("Launch at login", isOn: launchAtLogin)
             if loginStatus == .requiresApproval {
                 Text("Allow Nooklings in Login Items to finish enabling launch at login.")
@@ -1293,29 +1337,21 @@ struct SettingsView: View {
                 Button("Refresh models") { byte.reloadChatGPTModels() }
                     .disabled(byte.isStreaming || byte.isLoadingModels || !byte.chatGPT.canUsePlan)
             } else {
-                Picker("Model", selection: $model) {
-                    Text("Sonnet 4.6").tag("claude-sonnet-4-6")
-                    Text("Opus 4.8").tag("claude-opus-4-8")
-                    Text("Haiku 4.5").tag("claude-haiku-4-5-20251001")
-                }
+                ClaudeModelSettings(model: byte)
             }
-            Picker("Effort", selection: $effort) {
-                Text("Low").tag("low")
-                Text("Medium").tag("medium")
-                Text("High").tag("high")
+            Divider()
+            LimitSettings(limits: byte.limits, isClaude: byte.provider == .anthropic, spent: byte.dailyEstimatedCost)
+            Divider()
+            Button("Clean up unused images") { byte.cleanupImages() }
+                .disabled(byte.isStreaming || byte.isPreparingImage)
+            if let status = byte.imageCleanupStatus {
+                Text(status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            .disabled(byte.provider == .chatGPT || !AnthropicRequestConfiguration.supportsAdaptiveThinking(model))
-
-            Text(byte.provider == .chatGPT ? "Your account determines available models and capabilities. Changes apply to the next message."
-                 : AnthropicRequestConfiguration.supportsAdaptiveThinking(model)
-                 ? "Changes apply to your next message."
-                 : "Haiku uses standard generation. Effort applies to Sonnet and Opus.")
-                .font(.system(size: 10, design: .rounded))
-                .foregroundStyle(.secondary)
         }
         .font(.system(size: 12, design: .rounded))
         .padding(14)
-        .frame(width: 300)
+        }
+        .frame(width: 340, height: 580)
         .onAppear { loginStatus = SMAppService.mainApp.status }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loginStatus = SMAppService.mainApp.status
@@ -1407,6 +1443,7 @@ struct ArchivesView: View {
                                 .buttonStyle(.plain)
                                 .foregroundStyle(.secondary)
                                 .help("Delete this saved chat")
+                                .accessibilityLabel("Delete saved chat: \(it.preview)")
                             }
                             .padding(6)
                             .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))

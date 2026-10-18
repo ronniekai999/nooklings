@@ -26,11 +26,11 @@ Five lifelike friends below your Mac’s notch. Optional Claude or ChatGPT, one 
 
 Nooklings is a native macOS companion app with five lifelike friends to choose from, each with their own food, hydration, play, and rest routines. They live just below the notch, react while thinking, and remember where you leave them. A compact Claude or ChatGPT panel handles everyday questions, images, and web research.
 
-Click to chat. Hover to care. Drag to make yourself at home.
+Click to chat, or press **⌃⌥Space** from any app. Hover to care. Drag to make yourself at home.
 
 **The pet works without an AI connection.** For replies, use an eligible ChatGPT plan through browser sign-in, or connect your own Anthropic API key. Credentials stay in macOS Keychain. Nooklings is built with SwiftUI and AppKit, with no third-party runtime dependencies.
 
-> **Source preview:** Nooklings is currently built from source. Bundles produced by this repository are unsigned. Automated macOS build, test, and bundle checks pass; real sign-in and UI behavior still need manual verification. See the [review and validation notes](docs/CODE_REVIEW.md#nooklings-update--october-18-2026) for the current evidence.
+> **Source preview:** Nooklings is currently built from source. Ordinary builds are unsigned; a [signing and notarization workflow](docs/DISTRIBUTION.md) is ready for Apple credentials. Native checks cover the new controls and recovery paths. Real sign-in, signed upgrades, and VoiceOver still need an installed-app pass. See the [review and validation notes](docs/CODE_REVIEW.md) for evidence.
 
 <a id="features"></a>
 ## ✨ What you get
@@ -50,17 +50,17 @@ Click to chat. Hover to care. Drag to make yourself at home.
 - **Claude API access** remains available with an Anthropic key; subscription login requires prior Anthropic approval for a third-party product.
 
 - **Streaming replies** in a compact panel, with Markdown formatting and copyable code blocks.
-- **Image questions** by dragging an image onto your companion, pasting with ⌘V, or using the clipboard button. Attach a screenshot, diagram, or photo to your next message.
-- **Optional web search** with source links beneath answers, capped at five tool uses per request.
-- **Model and effort controls** in Settings; changes apply to your next message.
+- **Image questions** using the file picker, drag and drop, or paste. Images are resized off the UI thread; missing attachments have Locate/Remove recovery controls. Attach a screenshot, diagram, or photo to your next message.
+- **Optional web search** with source links. Claude searches are capped at three by default and configurable; ChatGPT follows your model and account policy.
+- **Live model discovery** checks Claude availability and capabilities with your key. Shared metadata drives requests and dated pricing; unknown or stale prices are labeled.
 - **Stop reply** to cancel generation or a retry. Partial text stays visible with an interruption status.
-- **A session usage estimate** for reported tokens and searches.
+- **Context and spending controls** show a conservative thread estimate, offer an editable summary, and expose Claude output/search caps and an optional daily API spending guard.
 
 ### 📚 Conversations you can come back to
 
 - **Persistent chat history** and locally stored image attachments.
 - **New chat** archives your current thread before clearing it.
-- **Saved chats** lets you browse previews, reopen a conversation, or delete an archive.
+- **Saved chats** lets you browse, reopen, or delete an archive. Safe cleanup only removes images unreferenced by live, archive, and recovery records; a damaged record stops cleanup.
 - **Prompt saving and streaming checkpoints** preserve work before a request and about once a second while replies arrive.
 - **Visible storage errors**: failed archiving keeps the live conversation available, and unreadable history is preserved in a recovery copy before replacement.
 
@@ -69,7 +69,16 @@ Click to chat. Hover to care. Drag to make yourself at home.
 - **SwiftUI + AppKit**, with a transparent, borderless companion window and no Dock icon.
 - **macOS Keychain** for API keys entered in the app.
 - **Launch at login** for an installed app bundle.
+- **Configurable global shortcut** opens and focuses chat across apps; it never captures your screen or clipboard.
+- **Resizable chat** remembers its size, keeps the panel on a real display, and lets you read older replies while streaming.
 - **No notch required**: Nooklings falls back to the top of the main display.
+
+<p align="center">
+<img src="docs/assets/chat-compact-dark.png" width="280" alt="Compact Nooklings chat with an attachment picker, context estimate, summary control, and resize menu">
+<img src="docs/assets/chat-expanded-light.png" width="390" alt="Expanded Nooklings chat in light mode with a wider, taller transcript">
+</p>
+
+*Native macOS chat renders at compact and expanded sizes. The panel remembers your preferred size.*
 
 <a id="get-started"></a>
 ## 🚀 Get started
@@ -87,10 +96,10 @@ Check your toolchain with `swift --version`. If Apple's command-line tools are m
 
 ### 2. Clone and run
 
-The app is now **Nooklings**. The repository currently uses its original `byte` URL; the checkout below names your local folder `nooklings`.
+The app and repository are **Nooklings**. Existing Byte data and connections are preserved.
 
 ```bash
-git clone https://github.com/ronniekai999/byte.git nooklings
+git clone https://github.com/ronniekai999/nooklings.git nooklings
 cd nooklings
 swift run Nooklings
 ```
@@ -112,7 +121,7 @@ open Nooklings.app
 
 The script builds the release executable and assembles `Nooklings.app` with its icon, all companion artwork, and macOS bundle metadata. Move the app into **Applications** for everyday use, then enable **Launch at login** in Nooklings’ Settings if desired.
 
-This is a locally built, **unsigned** bundle. If macOS asks for confirmation, use Finder's **Open** action and follow the system prompts. Developer ID signing and notarized distribution are on the [roadmap](#roadmap).
+This is a locally built, **unsigned** bundle. If macOS asks for confirmation, use Finder's **Open** action and follow the system prompts. For distribution, follow the prepared [Developer ID signing and notarization workflow](docs/DISTRIBUTION.md). Apple credentials and an installed-app upgrade check are still needed.
 
 <details>
 <summary><strong>Use an environment variable instead of saving a key</strong></summary>
@@ -204,21 +213,20 @@ Open chat and choose the **gear** in its header.
 | Puns | Lots | Choose Off, Light, or Lots |
 | Model | Sonnet 4.6 for Claude; first available catalog entry for ChatGPT | Selects the next request's model |
 | Effort | High | Low, Medium, or High for supported Claude models; disabled for ChatGPT |
+| Global chat shortcut | ⌃⌥Space | Record a combination with Command or Control, or disable it |
+| Thread context | 32,000 estimated tokens | Pauses oversized sends while keeping the draft; use New chat or Summary… |
+| Claude output cap | 2,048 tokens | Configurable reply limit, subject to model support |
+| Claude search cap | 3 per reply | Choose 0–10; zero disables search |
+| Daily API guard | Off ($0) | Local estimate in USD; persists across restarts, resets at UTC midnight |
 | Launch at login | Reflects macOS registration | Starts an installed Nooklings bundle when you sign in |
 
 ### Model choices
 
 ChatGPT choices come from your account's live model catalog, preserving its ordering. Use **Refresh models** to retry a failed catalog request. Capabilities such as image input and web search depend on the chosen model and account policy; provider errors remain visible and do not silently switch billing.
 
-The Claude picker contains these identifiers:
+Claude's **Check availability** loads your key's current catalog, including capabilities and input/output limits. Retired models are excluded; unavailable saved choices pause sending until you choose another model. New models are not assigned guessed prices or optional features. Settings shows the availability check time and the pricing verification date.
 
-| Choice | API model ID | Request behavior |
-| --- | --- | --- |
-| Sonnet 4.6 | `claude-sonnet-4-6` | Image input, adaptive thinking, adjustable effort |
-| Opus 4.8 | `claude-opus-4-8` | Configured for image input, adaptive thinking, adjustable effort |
-| Haiku 4.5 | `claude-haiku-4-5-20251001` | Image input and standard generation; effort is disabled |
-
-Model IDs and capabilities are configured in [AnthropicRequest.swift](Sources/Byte/AnthropicRequest.swift). **Live model availability has not been verified**, and the Opus identifier was retained from the original source. If a request reports an unavailable model, choose one your Anthropic account supports. Model discovery and a shared capability/pricing catalog are planned.
+See [Models and limits](docs/MODELS_AND_LIMITS.md) for reference prices, supported controls, and provider restrictions. ChatGPT's plan route does not accept output or search-call caps; use **Manage usage** for plan and credit controls.
 
 <a id="privacy-and-cost"></a>
 ## 🔐 Your data, connections, and usage
@@ -227,7 +235,7 @@ Model IDs and capabilities are configured in [AnthropicRequest.swift](Sources/By
 
 Quit the old Byte app before opening **Nooklings.app**, then replace the old app in Applications. If you use Launch at login, turn it off in Byte before replacing the app and turn it on again in Nooklings afterward.
 
-Your original Byte pet, conversations, images, settings, pinned position, and saved connections remain available. To preserve them, Nooklings retains `~/.config/byte`, the `com.ronnie.byte` bundle identifier, existing preference keys, and Keychain service names. Existing ChatGPT registrations may still appear as **Byte** in your account; new registrations use **Nooklings**. Internal Swift module and source paths also retain `Byte` for compatibility.
+Your original Byte pet, conversations, images, settings, pinned position, and saved connections remain available. To preserve them, Nooklings retains `~/.config/byte`, the `com.ronnie.byte` bundle identifier, existing preference keys, and Keychain service names. Source launches also migrate preferences from the old `Byte` and `Nooklings` process domains into the same stable suite without overwriting existing values. Existing ChatGPT registrations may still appear as **Byte** in your account; new registrations use **Nooklings**. Internal Swift module and source paths also retain `Byte` for compatibility.
 
 ### What stays on your Mac
 
@@ -257,15 +265,15 @@ When you send a question, Nooklings sends the thread's conversation context, its
 
 ChatGPT requests use `store: false` and `stream: true`, resend local context, and only count a reply as complete after `response.completed`. Subscription usage limits can apply across apps or specifically to Nooklings. A limit pauses sending until you review **Manage usage** and choose **Try again**. Nooklings never silently falls back to paid Anthropic API calls.
 
-Image attachment is explicit: drag, paste, or use the clipboard button. Nooklings does not automatically capture your screen.
+Image attachment is explicit: pick a file, drag, paste, or use the clipboard button. The global shortcut only opens and focuses chat. Nooklings does not automatically capture your screen.
 
 ### How the cost estimate works
 
-For Claude API requests, the session meter uses reported input/output tokens and web searches, with approximate prices defined in the source. It includes known usage from failed attempts. Actual billing can differ because of cached-token pricing, disconnects, and provider price changes. ChatGPT displays reported session tokens without a dollar estimate; use **Manage usage** for plan and credit usage.
+Claude's meter uses reported input/output tokens, cache read/write tiers, and searches at dated list prices. Unknown or stale prices are labeled instead of assuming another model's rate. The optional **Daily API guard** considers tracked usage plus a reserve for the next reply and its searches. It persists across restarts and provider switches, and resets at UTC midnight. Actual billing can differ, especially after disconnects or search-result expansion; use provider account controls for an enforced billing limit. ChatGPT shows reported tokens and links to **Manage usage**, without inventing a dollar estimate.
 
-Long conversations resend more context, including images. Starting a new chat, choosing a lower-cost supported model, and turning off search when you do not need it can reduce usage. Check actual charges in your Anthropic account; the meter is an estimate.
+Long conversations resend context and images. The visible context estimate pauses oversized sends without discarding a draft. **Summary…** gives you local excerpts to edit into a summary, then archives the original before starting a shorter thread. No summarization API call or extra AI charge is made. Output and search caps apply to Claude; see [Models and limits](docs/MODELS_AND_LIMITS.md).
 
-Deleting an archive currently leaves image sidecars on disk. Automatic image cleanup, retention limits, and context summarization are planned.
+Deleting an archive attempts safe image cleanup. **Clean up unused images** in Settings scans live, archived, and recovery conversations. Unreadable records stop deletion; unrelated files and linked image files are preserved. Missing attachments can be located or explicitly removed before sending again. New image imports are limited to 25 MB and 100 megapixels and downsampled to a 1,568-pixel long edge.
 
 <a id="troubleshooting"></a>
 ## 🩺 Troubleshooting
@@ -279,13 +287,15 @@ Deleting an archive currently leaves image sidecars on disk. Automatic image cle
 | **ChatGPT sign-in or models fail** | Check the visible connection error and selected account. Retry **Continue with ChatGPT** or **Refresh models** in Settings. Plan/account eligibility and provider availability still apply. |
 | **ChatGPT credentials couldn't be saved** | Unlock Keychain or restore Nooklings’ access, then choose **Retry Keychain save** in the connection form. Keep Nooklings open so the pending replacement can be saved. |
 | **ChatGPT reports a usage limit** | Open **Manage usage** to review plan and Nooklings limits, then choose **Try again** when usage is available. |
-| **A model request is rejected** | Check the key's API access and the model ID in Settings. Live availability of the bundled IDs, especially Opus, needs verification. |
+| **A model request is rejected** | Use **Check availability** in Settings and choose a returned model. Unknown optional capabilities stay disabled; account policy can still restrict requests. |
+| **An image is unavailable** | Use **Locate image…** on the message, or explicitly **Remove attachment**. Sending pauses until the missing context is addressed. |
+| **The shortcut does not open chat** | Open Settings, record a new combination, and check the registration error. System-reserved shortcuts may be intercepted by macOS. |
 | **A reply stalls or is interrupted** | Use **Stop reply** and send again when connectivity recovers. Partial replies remain visible with a status and are excluded from future assistant context. |
 | **New chat or reopening reports a save error** | Check available disk space and access to `~/.config/byte`. Keep the live thread and recovery files until the storage problem is resolved. |
 | **Launch at login does not work** | Use an installed `Nooklings.app` rather than `swift run`. Check **System Settings → General → Login Items** for approval or add the app there manually. |
-| **Keychain asks for access after a rebuild** | Unsigned executable changes can trigger another access prompt. Stable code signing is a distribution goal. |
+| **Keychain asks for access after a rebuild** | Unsigned rebuilds and the first move to a signed build can prompt. Future signed releases must retain the same bundle ID and Apple team; see DISTRIBUTION.md. |
 
-For a bug report, include your macOS version, Swift version, steps to reproduce, and the visible error. Remove API keys and private chat content before sharing logs or screenshots. [Open an issue](https://github.com/ronniekai999/byte/issues).
+For a bug report, include your macOS version, Swift version, steps to reproduce, and the visible error. Remove API keys and private chat content before sharing logs or screenshots. [Open an issue](https://github.com/ronniekai999/nooklings/issues).
 
 <a id="architecture"></a>
 ## 🏗️ How it works
@@ -316,9 +326,9 @@ swift test
 plutil -lint Nooklings.app/Contents/Info.plist
 ```
 
-The [macOS workflow](.github/workflows/ci.yml) runs the same sequence. The **68-test suite** passes on macOS 14 with Swift 5.10. Companion regression tests cover legacy-save migration, independent care histories, species-specific needs, elapsed naps, cancellation and duplicate-action protection, corrupted-save preservation, bundled artwork, and light/dark native render checks. Coverage includes request options, usage, persistence, archives, key migration, images, interrupted streams, cancellation, citations, and link handling, plus ChatGPT callback validation, identity signatures/claims, account separation, coordinated token rotation, sign-out during refresh, failed-save recovery, catalog retry, complete loopback sign-in and expired-code recovery, plan limits, and request contracts. Tests use temporary directories, stubbed HTTP streams, and in-memory credential stores; they do not make live provider calls or use your real Keychain.
+The [macOS workflow](.github/workflows/ci.yml) runs native regression tests and builds a universal Intel/Apple silicon bundle. Tests cover preferences migration, companion saves and elapsed care, global focus and shortcut settings, display geometry, context/spending guards, catalogs and pricing, attachment cleanup/recovery, persistence, streaming, and ChatGPT authentication. Native render artifacts include all companions and compact/expanded chat. Network and credential tests use temporary files and stubs, with no live API charges.
 
-See the [passing native run](https://github.com/ronniekai999/byte/actions/runs/39100486937) and [readiness review](docs/CODE_REVIEW.md#readiness-review--october-10-2026) for the evidence and hands-on test steps. Live provider sign-in, real Keychain prompts, Login Items approval, and UI/audio behavior remain unverified.
+See [review evidence](docs/CODE_REVIEW.md), the [desktop validation matrix](docs/ACCESSIBILITY.md), and the [distribution guide](docs/DISTRIBUTION.md). Real provider sign-in, VoiceOver, Keychain upgrade prompts, and Login Items need an installed-app pass; unsigned CI cannot establish notarized-release readiness.
 
 ### Source map
 
@@ -326,6 +336,10 @@ See the [passing native run](https://github.com/ronniekai999/byte/actions/runs/3
 | --- | --- |
 | [App.swift](Sources/Byte/App.swift) | App lifecycle, borderless window, placement, and dragging |
 | [ByteModel.swift](Sources/Byte/ByteModel.swift) | Conversation state, persistence, archives, pet care, and streaming |
+| [AppPreferences.swift](Sources/Byte/AppPreferences.swift) | Stable preferences and source-launch migration |
+| [GlobalShortcut.swift](Sources/Byte/GlobalShortcut.swift) · [WindowPlacement.swift](Sources/Byte/WindowPlacement.swift) | Global registration, recorder, and display-safe geometry |
+| [ModelCatalog.swift](Sources/Byte/ModelCatalog.swift) · [ChatLimits.swift](Sources/Byte/ChatLimits.swift) | Shared capabilities/prices, context estimates, and spending ledger |
+| [Attachments.swift](Sources/Byte/Attachments.swift) · [AttachmentInput.swift](Sources/Byte/AttachmentInput.swift) | Background preparation, explicit inputs, and safe cleanup |
 | [AnthropicRequest.swift](Sources/Byte/AnthropicRequest.swift) | Model-specific request options and cumulative usage |
 | [APIKeyStore.swift](Sources/Byte/APIKeyStore.swift) | Keychain storage and the testable key-store interface |
 | [ChatGPTAuth.swift](Sources/Byte/ChatGPTAuth.swift) | Browser authorization, verified identities, protected account records, token refresh and sign-out |
@@ -344,15 +358,16 @@ For contributions, keep changes focused, explain the user-visible behavior, and 
 <a id="roadmap"></a>
 ## 🌱 What's next
 
-The next priorities are:
+The configurable shortcut, context/spending controls, shared model discovery, image recovery/cleanup, display constraints, and resizable chat are implemented. The signed-release workflow is prepared for Apple credentials.
 
-1. **A configurable global shortcut** to open and focus chat across apps.
-2. **Context and spending controls**, with thread limits and optional summaries.
-3. **Verified model discovery**, shared capabilities, and current pricing.
-4. **Signed, notarized distribution** with stable Keychain identity.
-5. **Image cleanup and attachment recovery**, better display positioning, a resizable panel, and broader VoiceOver validation.
+The remaining release priorities are:
 
-See the [full roadmap](ROADMAP.md) and [ranked review findings](docs/CODE_REVIEW.md#next-improvements) for scope and acceptance criteria.
+1. Add Developer ID/notarization credentials and validate the first signed upgrade.
+2. Run the installed-app VoiceOver, keyboard, multiple-display, and Login Items matrix.
+3. Verify real provider sign-in, Keychain prompts, and streaming with eligible accounts.
+4. Continue separating streaming and persistence, and expand retry/continuation coverage.
+
+See the [full roadmap](ROADMAP.md) and [ranked review findings](docs/CODE_REVIEW.md#next-improvements) for acceptance criteria and validation limits.
 
 ---
 

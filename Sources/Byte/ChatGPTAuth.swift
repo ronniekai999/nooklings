@@ -234,7 +234,7 @@ final class ChatGPTAuth: ObservableObject {
     private var isUsingCredentials = false
 
     init(store: any APIKeyStoring = KeychainAPIKeyStore(service: "com.ronnie.byte.chatgpt", account: "accounts"),
-         defaults: UserDefaults = .standard, session: URLSession = ProviderSession.shared,
+         defaults: UserDefaults = AppPreferences.shared, session: URLSession = ProviderSession.shared,
          credentialLock: ChatGPTCredentialLock = ChatGPTCredentialLock()) {
         self.store = store; self.defaults = defaults; self.session = session
         self.credentialLock = credentialLock

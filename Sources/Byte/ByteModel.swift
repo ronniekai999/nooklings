@@ -26,6 +26,7 @@ final class ByteModel: ObservableObject {
         var imageType: String? = nil
         var imageB64: String? = nil
         var displayImage: NSImage? = nil
+        var imageMissing = false
         enum Role: String, Codable { case user, byte }
         struct Source: Codable, Hashable { let title: String; let url: String }
 
@@ -53,6 +54,18 @@ final class ByteModel: ObservableObject {
     }
 
     @Published var chatOpen = false
+    @Published private(set) var focusRequest = UUID()
+    let shortcut: GlobalShortcut
+    let limits: ChatLimits
+    private let spendLedger: SpendLedger
+    private var limitsObservation: AnyCancellable?
+    @Published private(set) var anthropicModels: [ModelMetadata] = []
+    @Published private(set) var anthropicModelsCheckedAt: Date?
+    @Published private(set) var isLoadingAnthropicModels = false
+    @Published var modelCatalogError: String?
+    @Published var sendNotice: String?
+    @Published private(set) var sessionCostIncomplete = false
+    private var anthropicCatalogTask: Task<Void, Never>?
     @Published var draft = ""
     @Published var turns: [Turn] = []
     @Published var isThinking = false      // waiting on the first text token (or retrying)
@@ -71,6 +84,11 @@ final class ByteModel: ObservableObject {
     let chatGPT: ChatGPTAuth
 
     // Pending image attachment (vision), waiting to be sent with the next message.
+    @Published private(set) var isPreparingImage = false
+    @Published var attachmentError: String?
+    @Published private(set) var imageCleanupStatus: String?
+    private var imageTask: Task<Void, Never>?
+    private var imageRequestID: UUID?
     @Published var pendingImage: NSImage? = nil
     @Published var pendingImageB64: String? = nil
     @Published var pendingImageType: String? = nil
@@ -95,7 +113,7 @@ final class ByteModel: ObservableObject {
     private var connectionTask: Task<Void, Never>?
     private var catalogTask: Task<Void, Never>?
 
-    init(configDirectory: URL? = nil, defaults: UserDefaults = .standard,
+    init(configDirectory: URL? = nil, defaults: UserDefaults = AppPreferences.shared,
          keyStore: any APIKeyStoring = KeychainAPIKeyStore(),
          chatGPTStore: any APIKeyStoring = KeychainAPIKeyStore(service: "com.ronnie.byte.chatgpt", account: "accounts"),
          chatGPTCredentialLock: ChatGPTCredentialLock = ChatGPTCredentialLock(),
@@ -105,6 +123,9 @@ final class ByteModel: ObservableObject {
         self.configDirectory = configDirectory ?? URL(fileURLWithPath:
             (NSHomeDirectory() as NSString).appendingPathComponent(".config/byte"))
         self.defaults = defaults
+        self.shortcut = GlobalShortcut(defaults: defaults)
+        self.limits = ChatLimits(defaults: defaults)
+        self.spendLedger = SpendLedger(defaults: defaults)
         self.keyStore = keyStore
         self.session = session
         self.environment = environment
@@ -119,6 +140,7 @@ final class ByteModel: ObservableObject {
         loadHistory()
         refreshHasArchive()
         loadPet()
+        limitsObservation = limits.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         authObservation = chatGPT.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         if provider == .chatGPT, chatGPT.canUsePlan { reloadChatGPTModels() }
     }
@@ -194,8 +216,10 @@ final class ByteModel: ObservableObject {
         guard activeCare == nil, !isStreaming else { return false }
         do {
             let saved = try readPet(for: next)
-            guard persistPet(force: true) else { return false }
+            // A protected damaged save must not trap the user on that companion.
+            guard petPersistenceBlocked || persistPet(force: true) else { return false }
             companion = next; pet = saved
+            petPersistenceBlocked = false
             defaults.set(next.rawValue, forKey: "byte.companion")
             careFeedback = "Hello, \(next.name). \(next.personality)"
             lastPetSave = .distantPast
@@ -227,6 +251,10 @@ final class ByteModel: ObservableObject {
     /// One reservation shared by the hover bar, dashboard and keyboard actions.
     func beginCare(_ action: CareAction) -> UUID? {
         guard activeCare == nil else { return nil }
+        guard !petPersistenceBlocked else {
+            careFeedback = "This care history needs recovery. Choose another companion while the original file is preserved."
+            return nil
+        }
         // Settle needs without firing a greeting/trick into the care animation.
         pet.advance(to: now(), companion: companion)
         if let reason = pet.unavailableReason(for: action, companion: companion) {
@@ -280,15 +308,6 @@ final class ByteModel: ObservableObject {
         }
     }
 
-    // Approximate public list prices (USD per 1M tokens). Edit if Anthropic's change;
-    // this meter is a rough estimate, not exact billing.
-    private static let pricing: [String: (input: Double, output: Double)] = [
-        "claude-sonnet-4-6": (3, 15),
-        "claude-opus-4-8": (15, 75),
-        "claude-haiku-4-5-20251001": (1, 5),
-    ]
-    private static let webSearchPer1000 = 10.0
-
     /// Read live from Settings (defaults: Sonnet 4.6, high effort, web search on,
     /// lots of puns). Computed so changes in the settings popover take effect on the
     /// next message without restarting Byte.
@@ -297,15 +316,92 @@ final class ByteModel: ObservableObject {
             : (defaults.string(forKey: "byte.model") ?? "claude-sonnet-4-6")
     }
     var hasConnection: Bool { provider == .anthropic ? hasKey : chatGPT.canUsePlan }
+    var selectedModel: ModelMetadata {
+        anthropicModels.first { $0.id == model } ?? ModelCatalog.metadata(for: model)
+    }
+    var effectiveOutputCap: Int { min(limits.outputCap, selectedModel.maxOutputTokens ?? limits.outputCap) }
+    var effectiveContextCap: Int {
+        min(limits.inputCap, max(1000, (provider == .anthropic ? selectedModel.maxInputTokens : nil) ?? 160_000) - effectiveOutputCap)
+    }
+    var contextEstimate: Int {
+        ChatContext.estimate(turns: turns, draft: draft, pendingImage: pendingImageB64 != nil, system: datedSystemPrompt())
+    }
+    var dailyEstimatedCost: Double { spendLedger.amount(at: now()) }
+    var pricingStatus: String {
+        if selectedModel.price == nil { return "Price unknown — no dollar estimate for this model." }
+        if ModelCatalog.pricesAreStale(at: now()) { return "Prices are stale. Update Nooklings before using the spending guard." }
+        let p = selectedModel.price!
+        return String(format: "$%g input / $%g output per million tokens · checked %@", p.input, p.output, ModelCatalog.verifiedOn)
+    }
+    var sendBlockReason: String? {
+        if turns.contains(where: { $0.imageMissing }) {
+            return "An earlier image is missing. Locate it or remove its attachment before sending, so the model doesn't receive incomplete context."
+        }
+        if contextEstimate > effectiveContextCap {
+            return "This thread exceeds your context limit. Start a new chat or review a summary to continue. Your draft is kept."
+        }
+        if provider == .anthropic, conversationHasImage, !selectedModel.capabilities.images {
+            return "Image support isn't verified for this model. Choose an image-capable model or start a text-only chat."
+        }
+        if provider == .anthropic {
+            return spendingBlockReason(inputTokens: contextEstimate, requestedModel: model,
+                outputTokens: effectiveOutputCap, searches: webSearchOn ? limits.searchCap : 0)
+        }
+        return nil
+    }
+    private func spendingBlockReason(inputTokens: Int, requestedModel: String, outputTokens: Int, searches: Int) -> String? {
+        guard limits.budget > 0 else { return nil }
+        guard let price = ModelCatalog.metadata(for: requestedModel).price,
+              !ModelCatalog.pricesAreStale(at: now()), !spendLedger.isIncomplete(at: now()) else {
+            return "The daily spending guard needs current, complete price estimates. Choose a model with known prices or adjust the guard in Settings."
+        }
+        // Include a reserve for search-result tokens; this still isn't a billing guarantee.
+        let projected = price.cost(AnthropicUsage(inputTokens: inputTokens + searches * 8192,
+                                                 outputTokens: outputTokens, searches: searches))
+        if dailyEstimatedCost + projected > limits.budget {
+            return "This reply could exceed your daily API spending guard. Lower output/search limits or adjust the budget in Settings."
+        }
+        return nil
+    }
+
+    func selectAnthropicModel(_ id: String) {
+        guard !isStreaming, anthropicModels.contains(where: { $0.id == id }) else { return }
+        objectWillChange.send()
+        defaults.set(id, forKey: "byte.model")
+        sendNotice = nil
+    }
+
+    func reloadAnthropicModels() {
+        guard !isStreaming, let key = apiKey() else { return }
+        anthropicCatalogTask?.cancel()
+        isLoadingAnthropicModels = true; modelCatalogError = nil
+        anthropicCatalogTask = Task {
+            do {
+                let choices = try await ModelCatalog.discover(key: key, session: session)
+                try Task.checkCancellation()
+                anthropicModels = choices
+                anthropicModelsCheckedAt = now()
+                let savedClaudeModel = defaults.string(forKey: "byte.model") ?? "claude-sonnet-4-6"
+                if !choices.contains(where: { $0.id == savedClaudeModel }) {
+                    modelCatalogError = "Your saved model isn't available. Choose a model returned by your API key."
+                }
+            } catch is CancellationError { return }
+            catch {
+                guard !Task.isCancelled else { return }
+                modelCatalogError = error.localizedDescription
+            }
+            if !Task.isCancelled { isLoadingAnthropicModels = false }
+        }
+    }
     var canSend: Bool {
-        !isConnecting && hasConnection && (provider == .anthropic ||
+        !isConnecting && !isPreparingImage && hasConnection && (provider != .anthropic || (!isLoadingAnthropicModels && (anthropicModelsCheckedAt == nil || anthropicModels.contains { $0.id == model }))) && (provider == .anthropic ||
             (!chatGPTUsageBlocked && chatGPTModels.contains { $0.slug == model }))
     }
 
     func selectProvider(_ value: AIProvider) {
         guard !isStreaming, !isConnecting else { return }
         if provider != value {
-            sessionCost = 0; sessionInTok = 0; sessionOutTok = 0; sessionSearches = 0
+            sessionCost = 0; sessionCostIncomplete = false; sessionInTok = 0; sessionOutTok = 0; sessionSearches = 0
         }
         provider = value
         defaults.set(value.rawValue, forKey: "byte.provider")
@@ -348,7 +444,7 @@ final class ByteModel: ObservableObject {
                 try await chatGPT.signIn(accountID: accountID, openBrowser: { NSWorkspace.shared.open($0) })
                 try Task.checkCancellation()
                 if provider != .chatGPT {
-                    sessionCost = 0; sessionInTok = 0; sessionOutTok = 0; sessionSearches = 0
+                    sessionCost = 0; sessionCostIncomplete = false; sessionInTok = 0; sessionOutTok = 0; sessionSearches = 0
                 }
                 provider = .chatGPT
                 chatGPTUsageBlocked = false
@@ -402,7 +498,8 @@ final class ByteModel: ObservableObject {
         }
     }
     private var effort: String { defaults.string(forKey: "byte.effort") ?? "high" }
-    private var webSearchOn: Bool { (defaults.object(forKey: "byte.webSearch") as? Bool) ?? true }
+    var supportsWebSearch: Bool { provider == .chatGPT || selectedModel.capabilities.webSearch }
+    private var webSearchOn: Bool { ((defaults.object(forKey: "byte.webSearch") as? Bool) ?? true) && supportsWebSearch && (provider == .chatGPT || limits.searchCap > 0) }
     private var punLevel: Int { (defaults.object(forKey: "byte.puns") as? Int) ?? 2 }
 
     private var systemPrompt: String {
@@ -445,13 +542,19 @@ final class ByteModel: ObservableObject {
     }
 
     func toggleChat() {
-        chatOpen.toggle()
-        if chatOpen { NSApp.activate(ignoringOtherApps: true) }
-        else { draft = "" }
-        onChatOpenChanged?(chatOpen)
+        if chatOpen { chatOpen = false; onChatOpenChanged?(false) }
+        else { openAndFocusChat() }
+    }
+
+    func openAndFocusChat() {
+        if !chatOpen { chatOpen = true; onChatOpenChanged?(true) }
+        onFocusChat?()
+        focusRequest = UUID()
     }
 
     var onChatOpenChanged: (@MainActor (Bool) -> Void)?
+    var onFocusChat: (@MainActor () -> Void)?
+    var onResizeChat: (@MainActor (CGSize) -> Void)?
 
     // Window dragging / pinning (wired up by AppDelegate). Byte can be dragged
     // anywhere on screen; his position is persisted and restored on launch.
@@ -473,6 +576,26 @@ final class ByteModel: ObservableObject {
         draft = ""
         clearPendingImage()
         persist()
+    }
+
+    var summaryDraft: String { ChatContext.summaryDraft(turns: turns) }
+
+    @discardableResult
+    func startChatWithSummary(_ summary: String) -> Bool {
+        let text = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isStreaming, !text.isEmpty else { return false }
+        let seed = Turn(role: .user, text: "Conversation summary, reviewed by me:\n\(text)")
+        guard ChatContext.estimate(turns: [seed], draft: draft, pendingImage: pendingImageB64 != nil,
+                                   system: datedSystemPrompt()) <= effectiveContextCap else {
+            sendNotice = "Shorten the summary or draft to fit your context limit."; return false
+        }
+        do { try archiveCurrent() }
+        catch { storageError = "Couldn't archive the full thread. \(error.localizedDescription)"; return false }
+        let previous = turns
+        turns = [seed]
+        guard persist() else { turns = previous; return false }
+        sendNotice = nil
+        return true
     }
 
     private var archivesDir: String {
@@ -575,6 +698,7 @@ final class ByteModel: ObservableObject {
         do { try FileManager.default.removeItem(at: url) }
         catch { storageError = "Couldn't delete this saved chat. \(error.localizedDescription)" }
         refreshHasArchive()
+        cleanupImages()
     }
 
     private func archiveURL(_ id: String) -> URL? {
@@ -584,11 +708,11 @@ final class ByteModel: ObservableObject {
     }
 
     private func commitUsage(_ usage: AnthropicUsage, model requestedModel: String) {
-        let rate = Self.pricing[requestedModel] ?? (input: 3, output: 15)
-        sessionCost += Double(usage.inputTokens) / 1_000_000 * rate.input
-                     + Double(usage.outputTokens) / 1_000_000 * rate.output
-                     + Double(usage.searches) / 1000 * Self.webSearchPer1000
-        sessionInTok += usage.inputTokens
+        let price = ModelCatalog.metadata(for: requestedModel).price
+        let cost = ModelCatalog.pricesAreStale(at: now()) ? nil : price?.cost(usage)
+        if let cost { sessionCost += cost } else { sessionCostIncomplete = true }
+        spendLedger.record(cost, at: now())
+        sessionInTok += usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens
         sessionOutTok += usage.outputTokens
         sessionSearches += usage.searches
     }
@@ -618,7 +742,7 @@ final class ByteModel: ObservableObject {
             try FileManager.default.createDirectory(
                 atPath: imagesDir, withIntermediateDirectories: true,
                 attributes: [.posixPermissions: 0o700])
-            let id = turns[i].id.uuidString
+            let id = UUID().uuidString
             guard let url = imageURL(id) else { continue }
             try data.write(to: url, options: .atomic)
             turns[i].imageId = id
@@ -629,13 +753,25 @@ final class ByteModel: ObservableObject {
     /// from sidecar files for any decoded turns that reference one.
     private func relinkImages(_ list: inout [Turn]) {
         for i in list.indices {
-            guard let id = list[i].imageId, list[i].imageB64 == nil,
-                  let url = imageURL(id),
-                  let data = try? Data(contentsOf: url) else { continue }
+            guard let id = list[i].imageId, list[i].imageB64 == nil else { continue }
+            guard let url = imageURL(id),
+                  let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 5 * 1024 * 1024,
+                  let data = try? Data(contentsOf: url), let image = NSImage(data: data) else {
+                list[i].imageMissing = true; continue
+            }
             list[i].imageB64 = data.base64EncodedString()
-            list[i].displayImage = NSImage(data: data)
+            list[i].displayImage = image
+            list[i].imageMissing = false
             if list[i].imageType == nil { list[i].imageType = "image/jpeg" }
         }
+    }
+
+    func cleanupImages() {
+        guard !isStreaming, !isPreparingImage else { return }
+        do {
+            let count = try AttachmentStore.prune(root: configDirectory, liveIDs: Set(turns.compactMap(\.imageId)))
+            imageCleanupStatus = "Removed \(count) unused image\(count == 1 ? "" : "s")."
+        } catch { imageCleanupStatus = error.localizedDescription }
     }
 
     private func loadHistory() {
@@ -684,6 +820,8 @@ final class ByteModel: ObservableObject {
     func send() {
         let prompt = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isStreaming, canSend, !prompt.isEmpty || pendingImageB64 != nil else { return }
+        if let problem = sendBlockReason { sendNotice = problem; return }
+        sendNotice = nil
         draft = ""
         turns.append(Turn(role: .user, text: prompt,
                           imageType: pendingImageType,
@@ -712,7 +850,8 @@ final class ByteModel: ObservableObject {
             }
         } else {
             let configuration = AnthropicRequestConfiguration(
-                model: model, effort: effort, webSearch: webSearchOn, system: datedSystemPrompt())
+                model: model, effort: effort, webSearch: webSearchOn, system: datedSystemPrompt(),
+                maxOutputTokens: effectiveOutputCap, maxSearches: limits.searchCap, capabilities: selectedModel.capabilities)
             streamTask = Task {
                 await stream(requestID: requestID, responseID: responseID, configuration: configuration)
             }
@@ -721,54 +860,57 @@ final class ByteModel: ObservableObject {
 
     // MARK: - Image attachment (vision)
 
-    static let visionModels = AnthropicRequestConfiguration.visionModels
-
     var conversationHasImage: Bool {
-        pendingImageB64 != nil || turns.contains { $0.imageB64 != nil }
+        pendingImageB64 != nil || turns.contains { $0.imageId != nil || $0.imageB64 != nil }
     }
 
-    func attachImage(_ image: NSImage) {
-        guard let (type, b64) = Self.encodeImage(image) else { return }
-        pendingImageType = type
-        pendingImageB64 = b64
-        pendingImage = image
-        // a non-vision model can't see it — switch to the default vision model
-        if provider == .anthropic, !Self.visionModels.contains(model) {
-            defaults.set("claude-sonnet-4-6", forKey: "byte.model")
+    func attachImage(data: Data) { prepareAttachment { try ImageAttachment.prepare(data: data) } }
+    func attachImage(url: URL, replacing turnID: UUID? = nil) {
+        prepareAttachment(replacing: turnID) { try ImageAttachment.prepare(url: url) }
+    }
+
+    private func prepareAttachment(replacing turnID: UUID? = nil, operation: @escaping @Sendable () throws -> Data) {
+        guard !isStreaming else { return }
+        imageTask?.cancel()
+        let requestID = UUID()
+        imageRequestID = requestID; isPreparingImage = true; attachmentError = nil
+        imageTask = Task {
+            let worker = Task.detached(priority: .userInitiated) { try operation() }
+            do {
+                let data = try await withTaskCancellationHandler(operation: { try await worker.value }, onCancel: { worker.cancel() })
+                guard !Task.isCancelled, imageRequestID == requestID else { return }
+                let image = NSImage(data: data), b64 = data.base64EncodedString()
+                if let turnID {
+                    guard let i = turns.firstIndex(where: { $0.id == turnID }), turns[i].imageMissing else {
+                        isPreparingImage = false; return
+                    }
+                    let previous = turns[i]
+                    turns[i].imageId = nil; turns[i].imageType = "image/jpeg"; turns[i].imageB64 = b64
+                    turns[i].displayImage = image; turns[i].imageMissing = false
+                    if !persist() { turns[i] = previous }
+                } else {
+                    pendingImageType = "image/jpeg"; pendingImageB64 = b64; pendingImage = image
+                }
+            } catch {
+                guard !Task.isCancelled, imageRequestID == requestID else { return }
+                attachmentError = error.localizedDescription
+            }
+            if imageRequestID == requestID { isPreparingImage = false; imageTask = nil; imageRequestID = nil }
         }
+    }
+
+    func removeMissingImage(from turnID: UUID) {
+        guard !isStreaming, !isPreparingImage, let i = turns.firstIndex(where: { $0.id == turnID }), turns[i].imageMissing else { return }
+        let previous = turns[i]
+        turns[i].imageId = nil; turns[i].imageType = nil; turns[i].imageB64 = nil
+        turns[i].displayImage = nil; turns[i].imageMissing = false
+        if turns[i].text.isEmpty { turns[i].text = "[Unavailable image removed]" }
+        if !persist() { turns[i] = previous }
     }
 
     func clearPendingImage() {
-        pendingImage = nil
-        pendingImageB64 = nil
-        pendingImageType = nil
-    }
-
-    /// Downscale to a sane size for vision (long edge ≤ 1568px, Anthropic's guidance)
-    /// and JPEG-encode to base64 — keeps tokens/cost and payload reasonable.
-    private static func encodeImage(_ image: NSImage, maxDim: CGFloat = 1568,
-                                    quality: Double = 0.85) -> (String, String)? {
-        guard let tiff = image.tiffRepresentation,
-              let src = NSBitmapImageRep(data: tiff) else { return nil }
-        let pw = src.pixelsWide, ph = src.pixelsHigh
-        guard pw > 0, ph > 0 else { return nil }
-        let scale = min(1.0, maxDim / CGFloat(max(pw, ph)))
-        let tw = max(1, Int(CGFloat(pw) * scale)), th = max(1, Int(CGFloat(ph) * scale))
-        guard let out = NSBitmapImageRep(
-            bitmapDataPlanes: nil, pixelsWide: tw, pixelsHigh: th,
-            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
-        out.size = NSSize(width: tw, height: th)
-        NSGraphicsContext.saveGraphicsState()
-        if let ctx = NSGraphicsContext(bitmapImageRep: out) {
-            NSGraphicsContext.current = ctx
-            ctx.imageInterpolation = .high
-            _ = src.draw(in: NSRect(x: 0, y: 0, width: tw, height: th))
-        }
-        NSGraphicsContext.restoreGraphicsState()
-        guard let jpeg = out.representation(using: .jpeg,
-                                            properties: [.compressionFactor: quality]) else { return nil }
-        return ("image/jpeg", jpeg.base64EncodedString())
+        imageTask?.cancel(); imageTask = nil; imageRequestID = nil; isPreparingImage = false
+        pendingImage = nil; pendingImageB64 = nil; pendingImageType = nil
     }
 
     private var legacyKeyURL: URL {
@@ -823,6 +965,8 @@ final class ByteModel: ObservableObject {
             do { try FileManager.default.removeItem(at: legacyKeyURL) }
             catch { storageError = "Your key is in Keychain, but the old key file couldn't be removed. \(error.localizedDescription)" }
         }
+        resetAnthropicCatalog()
+        reloadAnthropicModels()
     }
 
     func signOut() {
@@ -841,6 +985,7 @@ final class ByteModel: ObservableObject {
             }
             return
         }
+        resetAnthropicCatalog()
         do {
             try keyStore.remove()
             if FileManager.default.fileExists(atPath: legacyKeyURL.path) {
@@ -854,10 +999,18 @@ final class ByteModel: ObservableObject {
         hasKey = (apiKey() != nil) // an environment key remains available
     }
 
+    private func resetAnthropicCatalog() {
+        anthropicCatalogTask?.cancel(); anthropicCatalogTask = nil
+        isLoadingAnthropicModels = false; anthropicModels = []; anthropicModelsCheckedAt = nil
+        modelCatalogError = nil
+    }
+
     func prepareForTermination() {
         stopResponse()
         cancelChatGPTSignIn()
         catalogTask?.cancel()
+        anthropicCatalogTask?.cancel()
+        imageTask?.cancel()
         persist()
         persistPet(force: true)
     }
@@ -936,6 +1089,10 @@ final class ByteModel: ObservableObject {
         let maxAttempts = 4
         for attempt in 1...maxAttempts {
             guard isCurrent(requestID) else { return }
+            if attempt > 1, let problem = spendingBlockReason(inputTokens: contextEstimate, requestedModel: configuration.model,
+                                                              outputTokens: configuration.maxOutputTokens, searches: configuration.webSearch ? configuration.maxSearches : 0) {
+                finish(requestID: requestID, responseID: responseID, failure: problem); return
+            }
             let result = await runOnce(request: request, requestID: requestID, responseID: responseID)
             commitUsage(result.usage, model: configuration.model)
             guard isCurrent(requestID) else { return }
