@@ -76,9 +76,9 @@ struct ChatGPTStreamEvent {
     static func errorMessage(_ error: [String: Any]?) -> String {
         switch error?["code"] as? String {
         case "subscription_sharing_usage_limit_exceeded", "subscription_sharing_usage_unavailable":
-            return "ChatGPT plan usage is unavailable or its limit was reached. Review your plan and Byte's limit in Manage usage."
+            return "ChatGPT plan usage is unavailable or its limit was reached. Review your plan and Nooklings’ limit in Manage usage."
         case "subscription_sharing_not_enabled", "insufficient_scope":
-            return "ChatGPT plan usage isn't enabled for Byte. Continue with ChatGPT again and enable plan usage."
+            return "ChatGPT plan usage isn't enabled for Nooklings. Continue with ChatGPT again and enable plan usage."
         default:
             return (error?["message"] as? String) ?? "ChatGPT couldn't complete this request. Try again."
         }

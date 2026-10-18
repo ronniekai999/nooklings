@@ -101,7 +101,7 @@ struct CareView: View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 20)
                 .fill(LinearGradient(colors: [accent.opacity(0.23), accent.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing))
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(model.companion.name).font(.system(size: 26, weight: .bold, design: .rounded))
                     Spacer()
@@ -110,24 +110,26 @@ struct CareView: View {
                 }
                 Text(model.companion.species + " · " + (model.petAgeDays == 0 ? "Your new friend" : "Day \(model.petAgeDays + 1) together"))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
-                Spacer()
+                ZStack {
+                    ByteSprite(scale: 1.32, mood: mood, companion: model.companion)
+                        .scaleEffect(!reduceMotion && model.activeCare == .play && !phase.isMultiple(of: 2) ? 1.03 : 1)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
+                    if let action = model.activeCare {
+                        PropSprite(prop: .object(for: action, companion: model.companion), size: 34)
+                            .offset(x: -58, y: !reduceMotion && phase.isMultiple(of: 2) ? 45 : 30)
+                            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 156)
                 HStack {
-                    Text(model.companion.personality)
-                    Spacer()
-                    Text("\(model.pet.careCount) care moments")
+                    Text(model.companion.personality).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Text("\(model.pet.careCount) care moments").lineLimit(1)
                 }.font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
             }.padding(14)
-            ByteSprite(scale: 1.55, mood: mood, companion: model.companion)
-                .offset(x: 48, y: 42)
-                .scaleEffect(!reduceMotion && model.activeCare == .play && !phase.isMultiple(of: 2) ? 1.03 : 1)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
-            if let action = model.activeCare {
-                PropSprite(prop: .object(for: action, companion: model.companion), size: 34)
-                    .offset(x: 56, y: !reduceMotion && phase.isMultiple(of: 2) ? 151 : 135)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
-            }
         }
-        .frame(height: 232)
+        .frame(height: 256)
         .accessibilityElement(children: .combine)
     }
 

@@ -495,7 +495,7 @@ final class ByteModelTests: XCTestCase {
         catch { XCTAssertTrue(error.localizedDescription.contains("Retry Keychain save")) }
         XCTAssertEqual(exchanges, 1)
         do { _ = try await f.chatGPTLock.acquire(timeout: 0); XCTFail("The shared lock must remain held until credentials are saved.") }
-        catch { XCTAssertTrue(error.localizedDescription.contains("Another Byte instance")) }
+        catch { XCTAssertTrue(error.localizedDescription.contains("Another Nooklings instance")) }
         f.chatGPTKeys.failSave = false
         try auth.retryPendingSave()
         let recovered = try await peer.accessToken(for: account.clientID)

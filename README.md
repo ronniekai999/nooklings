@@ -1,8 +1,12 @@
 <div align="center">
 
-<img src="docs/assets/byte-banner.svg" alt="Byte — small arms, big answers. Your tiny T-rex for the macOS notch." width="100%">
+<img src="docs/assets/nooklings-icon.png" width="120" alt="Nooklings app icon: a paw inside a tiny home">
 
-**A little company. Claude or ChatGPT. Right below your Mac's notch.**
+<h1>Nooklings</h1>
+
+**Little companions. A world of personality.**
+
+Five lifelike friends below your Mac’s notch. Optional Claude or ChatGPT, one click away.
 
 <br>
 
@@ -14,19 +18,19 @@
 
 <br><br>
 
-[Get started](#get-started) · [Features](#features) · [Meet Byte](#meet-byte) · [Settings](#settings) · [Privacy & cost](#privacy-and-cost) · [Troubleshooting](#troubleshooting) · [Development](#development)
+[Get started](#get-started) · [Features](#features) · [Meet the Nooklings](#meet-the-nooklings) · [Settings](#settings) · [Privacy & cost](#privacy-and-cost) · [Troubleshooting](#troubleshooting) · [Development](#development)
 
 </div>
 
 ---
 
-Byte is a native macOS companion app with five lifelike friends to choose from, each with their own food, hydration, play, and rest routines. They live just below the notch, react while thinking, and remember where you leave them. A compact Claude or ChatGPT panel handles everyday questions, images, and web research.
+Nooklings is a native macOS companion app with five lifelike friends to choose from, each with their own food, hydration, play, and rest routines. They live just below the notch, react while thinking, and remember where you leave them. A compact Claude or ChatGPT panel handles everyday questions, images, and web research.
 
 Click to chat. Hover to care. Drag to make yourself at home.
 
-**The pet works without an AI connection.** For replies, use an eligible ChatGPT plan through browser sign-in, or connect your own Anthropic API key. Credentials stay in macOS Keychain. Byte is built with SwiftUI and AppKit, with no third-party runtime dependencies.
+**The pet works without an AI connection.** For replies, use an eligible ChatGPT plan through browser sign-in, or connect your own Anthropic API key. Credentials stay in macOS Keychain. Nooklings is built with SwiftUI and AppKit, with no third-party runtime dependencies.
 
-> **Source preview:** Byte is currently built from source. Bundles produced by this repository are unsigned. Automated macOS build, test, and bundle checks pass; real sign-in and UI behavior still need manual verification. See the [review and validation notes](docs/CODE_REVIEW.md#validation) for the current evidence.
+> **Source preview:** Nooklings is currently built from source. Bundles produced by this repository are unsigned. Automated macOS build, test, and bundle checks pass; real sign-in and UI behavior still need manual verification. See the [review and validation notes](docs/CODE_REVIEW.md#validation) for the current evidence.
 
 <a id="features"></a>
 ## ✨ What you get
@@ -37,7 +41,7 @@ Click to chat. Hover to care. Drag to make yourself at home.
 - **A modern care dashboard** with fullness, hydration (freshness for Ripple), energy, joy, suggested actions, and recent moments. Each companion keeps separate needs, age, care history, and rest progress.
 - **Species-specific care** with two foods, two play activities, water or splash refreshes, affection, and timed naps. Smooth props and quiet synthesized cues replace the pixel objects. Reduce Motion keeps care functional with static expressions.
 - **Optional check-ins** and adjustable puns, from off to lots.
-- **A home under the notch**, or wherever you drag him. His pinned position is remembered; a right-click resets it.
+- **A home under the notch**, or wherever you drag them. Their pinned position is remembered; a right-click resets it.
 
 ### 🧠 Claude or ChatGPT, one click away
 
@@ -46,7 +50,7 @@ Click to chat. Hover to care. Drag to make yourself at home.
 - **Claude API access** remains available with an Anthropic key; subscription login requires prior Anthropic approval for a third-party product.
 
 - **Streaming replies** in a compact panel, with Markdown formatting and copyable code blocks.
-- **Image questions** by dragging an image onto Byte, pasting with ⌘V, or using the clipboard button. Attach a screenshot, diagram, or photo to your next message.
+- **Image questions** by dragging an image onto your companion, pasting with ⌘V, or using the clipboard button. Attach a screenshot, diagram, or photo to your next message.
 - **Optional web search** with source links beneath answers, capped at five tool uses per request.
 - **Model and effort controls** in Settings; changes apply to your next message.
 - **Stop reply** to cancel generation or a retry. Partial text stays visible with an interruption status.
@@ -65,7 +69,7 @@ Click to chat. Hover to care. Drag to make yourself at home.
 - **SwiftUI + AppKit**, with a transparent, borderless companion window and no Dock icon.
 - **macOS Keychain** for API keys entered in the app.
 - **Launch at login** for an installed app bundle.
-- **No notch required**: Byte falls back to the top of the main display.
+- **No notch required**: Nooklings falls back to the top of the main display.
 
 <a id="get-started"></a>
 ## 🚀 Get started
@@ -83,15 +87,17 @@ Check your toolchain with `swift --version`. If Apple's command-line tools are m
 
 ### 2. Clone and run
 
+The app is now **Nooklings**. The repository currently uses its original `byte` URL; the checkout below names your local folder `nooklings`.
+
 ```bash
-git clone https://github.com/ronniekai999/byte.git
-cd byte
-swift run
+git clone https://github.com/ronniekai999/byte.git nooklings
+cd nooklings
+swift run Nooklings
 ```
 
-Byte appears near the top of your display. **Click him to open chat.** Choose **ChatGPT · your plan** and **Continue with ChatGPT**, then approve Byte in your browser. Byte loads your account's available models after connecting. You can also use the pet first, or choose **Claude · API key**, paste your key, and choose **Save**.
+Your companion appears near the top of your display. **Click to open chat, or hover and choose Care to meet all five.** Choose **ChatGPT · your plan** and **Continue with ChatGPT**, then approve Nooklings in your browser. Nooklings loads your account's available models after connecting. You can also use the pet first, or choose **Claude · API key**, paste your key, and choose **Save**.
 
-ChatGPT requests use your authorized plan allowance or available credits. **Manage usage** opens ChatGPT settings, where you can review usage and set Byte's limits. This uses the supported local-app integration, not a Codex login or access to existing ChatGPT conversations. Paid or remotely hosted distribution needs OpenAI approval; see [OpenAI's plan-usage guide](https://developers.openai.com/siwc/token-sharing-open-source).
+ChatGPT requests use your authorized plan allowance or available credits. **Manage usage** opens ChatGPT settings, where you can review usage and set Nooklings’ limits. This uses the supported local-app integration, not a Codex login or access to existing ChatGPT conversations. Paid or remotely hosted distribution needs OpenAI approval; see [OpenAI's plan-usage guide](https://developers.openai.com/siwc/token-sharing-open-source).
 
 For Claude, create a key in the [Anthropic Console](https://console.anthropic.com/). API requests use your API billing or eligible credits. Anthropic's October 7, 2026 update adds monthly API credits to Max and Team plans, but its developer docs still require prior approval to offer subscription login in a third-party product. See [the subscription update](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan) and [the developer requirement](https://code.claude.com/docs/en/agent-sdk/overview#get-started). Being a general companion app does not change that requirement.
 
@@ -101,10 +107,10 @@ From the repository directory:
 
 ```bash
 ./bundle.sh
-open Byte.app
+open Nooklings.app
 ```
 
-The script builds the release executable and assembles `Byte.app` with its icon, all companion artwork, and macOS bundle metadata. Move the app into **Applications** for everyday use, then enable **Launch at login** in Byte's Settings if desired.
+The script builds the release executable and assembles `Nooklings.app` with its icon, all companion artwork, and macOS bundle metadata. Move the app into **Applications** for everyday use, then enable **Launch at login** in Nooklings’ Settings if desired.
 
 This is a locally built, **unsigned** bundle. If macOS asks for confirmation, use Finder's **Open** action and follow the system prompts. Developer ID signing and notarized distribution are on the [roadmap](#roadmap).
 
@@ -117,7 +123,7 @@ An `ANTHROPIC_API_KEY` environment variable takes precedence over the key saved 
 read -r -s -p "Anthropic API key: " ANTHROPIC_API_KEY
 printf '\n'
 export ANTHROPIC_API_KEY
-swift run
+swift run Nooklings
 unset ANTHROPIC_API_KEY
 ```
 
@@ -126,7 +132,18 @@ These commands use **Bash**; run `bash` first if your terminal uses another shel
 </details>
 
 <a id="meet-byte"></a>
-## 🎾 Meet Byte
+<a id="meet-the-nooklings"></a>
+## Meet the Nooklings
+
+<table>
+<tr>
+<td align="center" width="20%"><img src="docs/assets/companions/trex.png" width="160" alt="Byte, a lifelike green T-Rex"><br><strong>Byte</strong><br>T-Rex<br><em>Small arms. Big heart.</em></td>
+<td align="center" width="20%"><img src="docs/assets/companions/dolphin.png" width="160" alt="Ripple, a silver bottlenose dolphin"><br><strong>Ripple</strong><br>Dolphin<br><em>A little wave of wonder.</em></td>
+<td align="center" width="20%"><img src="docs/assets/companions/dog.png" width="160" alt="Biscuit, a golden retriever"><br><strong>Biscuit</strong><br>Golden retriever<br><em>Your golden-hour best friend.</em></td>
+<td align="center" width="20%"><img src="docs/assets/companions/cat.png" width="160" alt="Miso, an orange tabby cat"><br><strong>Miso</strong><br>Tabby cat<br><em>Curiosity, with a side of mischief.</em></td>
+<td align="center" width="20%"><img src="docs/assets/companions/panda.png" width="160" alt="Bao, a giant panda"><br><strong>Bao</strong><br>Giant panda<br><em>Slow mornings. Happy tumbles.</em></td>
+</tr>
+</table>
 
 Choose a friend from **Care**, available on the hover bar or right-click menu. See the [companion guide](docs/COMPANIONS.md) for their care routines. Byte is selected on existing installations, and your original `pet.json` stays intact. Each friend’s needs continue to advance with elapsed time when you return to them.
 
@@ -140,33 +157,40 @@ Choose a friend from **Care**, available on the hover bar or right-click menu. S
 
 Food and water replenish needs up to 100%; play uses energy. Hungry, thirsty, or exhausted friends ask for care before energetic games. Rest recovers energy over time, including while the app is closed; **Wake gently** keeps only the energy already recovered. These are playful virtual-pet routines. Care works locally and never requires AI credits.
 
+<p align="center">
+<img src="docs/assets/care-byte-dark.png" width="320" alt="Byte’s care dashboard in dark mode, with needs, meals, games, and rest">
+<img src="docs/assets/care-ripple-light.png" width="320" alt="Ripple’s care dashboard in light mode, with fish, splash refresh, and hoop dives">
+</p>
+
+*Native macOS renders of the full care content. The app presents this inside a compact scrolling panel.*
+
 The quick controls and dashboard run the same animations and award care once at the action’s payoff. Switching companions is paused during care or a streaming reply. The chat persona changes with your friend; the conversation and AI connection stay shared across the app.
 
 
 | Action | What happens |
 | --- | --- |
-| **Click Byte** | Open or close chat |
+| **Click your companion** | Open or close chat |
 | **Hover over your companion** | Reveal quick feed, water/splash, play, rest/wake, and Care controls |
 | **Open Care** | Choose a companion; see needs, food choices, activities, rest progress, and recent care |
-| **Drag Byte** | Move him and remember the new position |
+| **Drag your companion** | Move them and remember the new position |
 | **Type, then Return** | Send a question |
 | **Drop or paste an image** | Attach it to the next question |
 | **Stop reply** | Cancel an active reply or retry |
 | **New chat** | Archive the current thread and start fresh |
 | **Saved chats** | Browse, reopen, or delete archived conversations |
-| **Right-click Byte** | Open chat, perform tricks, manage care, reset position, sign out, or quit |
+| **Right-click your companion** | Open chat, perform tricks, manage care, reset position, sign out, or quit |
 
 A few things to try:
 
 - “Explain the error in this screenshot.” Paste an image, then ask.
 - “Find the official documentation for this API.” Enable web search for source links.
 - “Help me simplify this Swift function.” Paste code and copy the suggested result.
-- Give Byte some water, play a round, then let him rest.
+- Bring Bao a bamboo buffet, help Ripple splash, or take Biscuit on a sniff safari.
 
-The companion window sits **below** the physical notch cutout. Dragging Byte lets you choose a different spot on your display.
+The companion window sits **below** the physical notch cutout. Dragging your companion lets you choose a different spot on your display.
 
 <a id="settings"></a>
-## ⚙️ Make Byte yours
+## ⚙️ Make Nooklings yours
 
 Open chat and choose the **gear** in its header.
 
@@ -175,12 +199,12 @@ Open chat and choose the **gear** in its header.
 | AI connection | Claude API for existing installations | Choose Claude API or your ChatGPT plan; manage saved connections |
 | ChatGPT account | Last selected registration | Switch accounts/workspaces, add an account, reauthorize, or sign out |
 | Web search | On | Allows the provider to search when the selected model/account supports it |
-| Sound effects | On | Plays Byte's synthesized stomp sounds |
-| Random check-ins | On | Lets Byte occasionally say hello or mention a need |
+| Sound effects | On | Plays a quiet sound palette for each animal |
+| Random check-ins | On | Lets your companion occasionally say hello or mention a need |
 | Puns | Lots | Choose Off, Light, or Lots |
 | Model | Sonnet 4.6 for Claude; first available catalog entry for ChatGPT | Selects the next request's model |
 | Effort | High | Low, Medium, or High for supported Claude models; disabled for ChatGPT |
-| Launch at login | Reflects macOS registration | Starts an installed Byte bundle when you sign in |
+| Launch at login | Reflects macOS registration | Starts an installed Nooklings bundle when you sign in |
 
 ### Model choices
 
@@ -199,9 +223,15 @@ Model IDs and capabilities are configured in [AnthropicRequest.swift](Sources/By
 <a id="privacy-and-cost"></a>
 ## 🔐 Your data, connections, and usage
 
+### Upgrading from Byte
+
+Quit the old Byte app before opening **Nooklings.app**, then replace the old app in Applications. If you use Launch at login, turn it off in Byte before replacing the app and turn it on again in Nooklings afterward.
+
+Your original Byte pet, conversations, images, settings, pinned position, and saved connections remain available. To preserve them, Nooklings retains `~/.config/byte`, the `com.ronnie.byte` bundle identifier, existing preference keys, and Keychain service names. Existing ChatGPT registrations may still appear as **Byte** in your account; new registrations use **Nooklings**. Internal Swift module and source paths also retain `Byte` for compatibility.
+
 ### What stays on your Mac
 
-Byte stores conversations, pet state, and attachments under `~/.config/byte`:
+Nooklings stores conversations, pet state, and attachments under `~/.config/byte`:
 
 ```text
 ~/.config/byte/
@@ -215,19 +245,19 @@ Byte stores conversations, pet state, and attachments under `~/.config/byte`:
 └── history-recovery-<UUID>.json  # Created when unreadable history is preserved
 ```
 
-Settings, selected account, a stable opaque ChatGPT host ID, and pinned position use macOS preferences. API keys and ChatGPT account credentials use separate **Keychain** records, apart from conversation files. Chat and image files are local files; they are **not encrypted by Byte**. Back up the whole data directory to retain attachments alongside chats.
+Settings, selected account, a stable opaque ChatGPT host ID, and pinned position use macOS preferences. API keys and ChatGPT account credentials use separate **Keychain** records, apart from conversation files. Chat and image files are local files; they are **not encrypted by Nooklings**. Back up the whole data directory to retain attachments alongside chats.
 
-ChatGPT sign-in opens the system browser and briefly listens on `127.0.0.1` for its callback. Byte verifies the signed identity token, state, nonce, audience, issuer, and expiration before making the new account active. Returning sign-ins reuse that account's issued client ID and the installation's host ID. Tokens refresh automatically and are saved together in Keychain. Credential updates are coordinated across Byte processes. If Keychain rejects a save, Byte retains the replacement in memory and pauses plan requests until **Retry Keychain save** succeeds. Sign-out attempts remote revocation and clears local tokens; if revocation cannot be confirmed, Byte tells you to disconnect it in ChatGPT settings. Account registration metadata is retained for later sign-in.
+ChatGPT sign-in opens the system browser and briefly listens on `127.0.0.1` for its callback. Nooklings verifies the signed identity token, state, nonce, audience, issuer, and expiration before making the new account active. Returning sign-ins reuse that account's issued client ID and the installation's host ID. Tokens refresh automatically and are saved together in Keychain. Credential updates are coordinated across Nooklings processes. If Keychain rejects a save, Nooklings retains the replacement in memory and pauses plan requests until **Retry Keychain save** succeeds. Sign-out attempts remote revocation and clears local tokens; if revocation cannot be confirmed, Nooklings tells you to disconnect it in ChatGPT settings. Account registration metadata is retained for later sign-in.
 
 Older `~/.config/byte/api_key` files are migrated to Keychain. The plaintext file is removed only after the Keychain write and read succeed; a failed migration retains the original and shows an error. The older `~/.config/finn` directory is migrated when a Byte directory does not already exist.
 
 ### What goes to your AI provider
 
-When you send a question, Byte sends the thread's conversation context, its instructions, and attached images to the selected provider: the **Anthropic Messages API** or **OpenAI Responses API**. Switching providers sends subsequent requests, including the existing thread context, to the newly selected provider. AI replies require cloud access. With web search enabled, the provider can use its supported search tool.
+When you send a question, Nooklings sends the thread's conversation context, its instructions, and attached images to the selected provider: the **Anthropic Messages API** or **OpenAI Responses API**. Switching providers sends subsequent requests, including the existing thread context, to the newly selected provider. AI replies require cloud access. With web search enabled, the provider can use its supported search tool.
 
-ChatGPT requests use `store: false` and `stream: true`, resend local context, and only count a reply as complete after `response.completed`. Subscription usage limits can apply across apps or specifically to Byte. A limit pauses sending until you review **Manage usage** and choose **Try again**. Byte never silently falls back to paid Anthropic API calls.
+ChatGPT requests use `store: false` and `stream: true`, resend local context, and only count a reply as complete after `response.completed`. Subscription usage limits can apply across apps or specifically to Nooklings. A limit pauses sending until you review **Manage usage** and choose **Try again**. Nooklings never silently falls back to paid Anthropic API calls.
 
-Image attachment is explicit: drag, paste, or use the clipboard button. Byte does not automatically capture your screen.
+Image attachment is explicit: drag, paste, or use the clipboard button. Nooklings does not automatically capture your screen.
 
 ### How the cost estimate works
 
@@ -243,16 +273,16 @@ Deleting an archive currently leaves image sidecars on disk. Automatic image cle
 | Symptom | What to check |
 | --- | --- |
 | **Build tools are missing** | Run `xcode-select --install`, complete installation, and confirm `swift --version` reports 5.9+. Build on macOS 14 or newer. |
-| **Byte has no Dock icon** | This is an accessory app. Look near the top of the display; right-click Byte for **Quit**. |
-| **Byte is in the wrong place** | Right-click him and choose **Reset position to notch**, then drag him to your preferred spot. |
+| **Nooklings has no Dock icon** | This is an accessory app. Look near the top of the display; right-click your companion for **Quit Nooklings**. |
+| **My companion is in the wrong place** | Right-click them and choose **Reset position to notch**, then drag them to your preferred spot. |
 | **Chat asks for a key after I saved one** | Check the selected AI connection, storage error banner, and Keychain access. For terminal runs, check whether `ANTHROPIC_API_KEY` overrides the saved key. |
 | **ChatGPT sign-in or models fail** | Check the visible connection error and selected account. Retry **Continue with ChatGPT** or **Refresh models** in Settings. Plan/account eligibility and provider availability still apply. |
-| **ChatGPT credentials couldn't be saved** | Unlock Keychain or restore Byte's access, then choose **Retry Keychain save** in the connection form. Keep Byte open so the pending replacement can be saved. |
-| **ChatGPT reports a usage limit** | Open **Manage usage** to review plan and Byte limits, then choose **Try again** when usage is available. |
+| **ChatGPT credentials couldn't be saved** | Unlock Keychain or restore Nooklings’ access, then choose **Retry Keychain save** in the connection form. Keep Nooklings open so the pending replacement can be saved. |
+| **ChatGPT reports a usage limit** | Open **Manage usage** to review plan and Nooklings limits, then choose **Try again** when usage is available. |
 | **A model request is rejected** | Check the key's API access and the model ID in Settings. Live availability of the bundled IDs, especially Opus, needs verification. |
 | **A reply stalls or is interrupted** | Use **Stop reply** and send again when connectivity recovers. Partial replies remain visible with a status and are excluded from future assistant context. |
 | **New chat or reopening reports a save error** | Check available disk space and access to `~/.config/byte`. Keep the live thread and recovery files until the storage problem is resolved. |
-| **Launch at login does not work** | Use an installed `Byte.app` rather than `swift run`. Check **System Settings → General → Login Items** for approval or add the app there manually. |
+| **Launch at login does not work** | Use an installed `Nooklings.app` rather than `swift run`. Check **System Settings → General → Login Items** for approval or add the app there manually. |
 | **Keychain asks for access after a rebuild** | Unsigned executable changes can trigger another access prompt. Stable code signing is a distribution goal. |
 
 For a bug report, include your macOS version, Swift version, steps to reproduce, and the visible error. Remove API keys and private chat content before sharing logs or screenshots. [Open an issue](https://github.com/ronniekai999/byte/issues).
@@ -262,7 +292,7 @@ For a bug report, include your macOS version, Swift version, steps to reproduce,
 
 ```mermaid
 flowchart LR
-    UI["Byte<br/>SwiftUI pet and chat"] --> Model["ByteModel<br/>Conversation and pet state"]
+    UI["Nooklings<br/>SwiftUI companions and chat"] --> Model["ByteModel<br/>Conversation and pet state"]
     Window["AppKit window<br/>Notch placement and dragging"] --- UI
     Model --> Disk[("Local files<br/>Chats, images, pet state")]
     Model --> Keys["macOS Keychain<br/>Saved API key"]
@@ -283,12 +313,12 @@ Run the native checks **on a Mac**:
 swift build
 swift test
 ./bundle.sh
-plutil -lint Byte.app/Contents/Info.plist
+plutil -lint Nooklings.app/Contents/Info.plist
 ```
 
-The [macOS workflow](.github/workflows/ci.yml) runs the same sequence. The original **51 regression tests** passed on macOS 14 with Swift 5.10. Companion regression tests add legacy-save migration, independent care histories, species-specific needs, elapsed naps, cancellation and duplicate-action protection, corrupted-save preservation, bundled artwork, and light/dark native render checks. Coverage includes request options, usage, persistence, archives, key migration, images, interrupted streams, cancellation, citations, and link handling, plus ChatGPT callback validation, identity signatures/claims, account separation, coordinated token rotation, sign-out during refresh, failed-save recovery, catalog retry, complete loopback sign-in and expired-code recovery, plan limits, and request contracts. Tests use temporary directories, stubbed HTTP streams, and in-memory credential stores; they do not make live provider calls or use your real Keychain.
+The [macOS workflow](.github/workflows/ci.yml) runs the same sequence. The **68-test suite** passes on macOS 14 with Swift 5.10. Companion regression tests cover legacy-save migration, independent care histories, species-specific needs, elapsed naps, cancellation and duplicate-action protection, corrupted-save preservation, bundled artwork, and light/dark native render checks. Coverage includes request options, usage, persistence, archives, key migration, images, interrupted streams, cancellation, citations, and link handling, plus ChatGPT callback validation, identity signatures/claims, account separation, coordinated token rotation, sign-out during refresh, failed-save recovery, catalog retry, complete loopback sign-in and expired-code recovery, plan limits, and request contracts. Tests use temporary directories, stubbed HTTP streams, and in-memory credential stores; they do not make live provider calls or use your real Keychain.
 
-See the [passing native run](https://github.com/ronniekai999/byte/actions/runs/38094130147) and [readiness review](docs/CODE_REVIEW.md#readiness-review--october-10-2026) for the evidence and hands-on test steps. Live provider sign-in, real Keychain prompts, Login Items approval, and UI/audio behavior remain unverified.
+See the [passing native run](https://github.com/ronniekai999/byte/actions/runs/39100103808) and [readiness review](docs/CODE_REVIEW.md#readiness-review--october-10-2026) for the evidence and hands-on test steps. Live provider sign-in, real Keychain prompts, Login Items approval, and UI/audio behavior remain unverified.
 
 ### Source map
 
@@ -299,7 +329,7 @@ See the [passing native run](https://github.com/ronniekai999/byte/actions/runs/3
 | [AnthropicRequest.swift](Sources/Byte/AnthropicRequest.swift) | Model-specific request options and cumulative usage |
 | [APIKeyStore.swift](Sources/Byte/APIKeyStore.swift) | Keychain storage and the testable key-store interface |
 | [ChatGPTAuth.swift](Sources/Byte/ChatGPTAuth.swift) | Browser authorization, verified identities, protected account records, token refresh and sign-out |
-| [ChatGPTCredentialLock.swift](Sources/Byte/ChatGPTCredentialLock.swift) | Shared credential locking across Byte processes |
+| [ChatGPTCredentialLock.swift](Sources/Byte/ChatGPTCredentialLock.swift) | Shared credential locking across Nooklings processes |
 | [OAuthLoopbackListener.swift](Sources/Byte/OAuthLoopbackListener.swift) | Temporary local OAuth callback listener |
 | [ChatGPTRequest.swift](Sources/Byte/ChatGPTRequest.swift) | Subscription request contract and Responses stream events |
 | [ByteView.swift](Sources/Byte/ByteView.swift) | Pet interaction, chat, Markdown, settings, and archives |
@@ -320,16 +350,16 @@ The next priorities are:
 2. **Context and spending controls**, with thread limits and optional summaries.
 3. **Verified model discovery**, shared capabilities, and current pricing.
 4. **Signed, notarized distribution** with stable Keychain identity.
-5. **Image cleanup and attachment recovery**, better display positioning, a resizable panel, and reduced-motion support.
+5. **Image cleanup and attachment recovery**, better display positioning, a resizable panel, and broader VoiceOver validation.
 
-See the [full roadmap](BYTE_ROADMAP.txt) and [ranked review findings](docs/CODE_REVIEW.md#next-improvements) for scope and acceptance criteria.
+See the [full roadmap](ROADMAP.md) and [ranked review findings](docs/CODE_REVIEW.md#next-improvements) for scope and acceptance criteria.
 
 ---
 
 <div align="center">
 
-**Small arms. Big answers.**
+**A little nook. A friend for every mood.**
 
-Built for the little moments between the big ones. 🦖
+Built for the little moments between the big ones. 🐾
 
 </div>

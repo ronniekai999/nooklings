@@ -1,4 +1,6 @@
-# Byte’s companions
+# Meet the Nooklings
+
+[See all five portraits and the care dashboard](../README.md#meet-the-nooklings).
 
 Open **Care** from the hover bar or the companion’s right-click menu. Choose Byte, Ripple, Biscuit, Miso, or Bao at the top. The selected companion is remembered on the next launch.
 
@@ -16,11 +18,11 @@ Both the quick bar and the dashboard trigger the same animated actions. Each mea
 
 Naps recover energy gradually. They continue while the app is closed, and **Wake gently** keeps the energy earned so far. Switching pets keeps each friend’s age, needs, rest schedule, and last five care moments. Byte still uses the original `~/.config/byte/pet.json`; the other companions use `pet-dolphin.json`, `pet-dog.json`, `pet-cat.json`, and `pet-panda.json`. An unreadable save is preserved and its error appears in Care.
 
-The chat persona follows the selected animal. Conversation history, credentials, and settings remain shared by the Byte app. Selection is paused during a care action or streaming reply. Pet care uses no network calls or AI credits.
+The chat persona follows the selected animal. Conversation history, credentials, and settings remain shared by Nooklings. Selection is paused during a care action or streaming reply. Pet care uses no network calls or AI credits.
 
 ## Artwork and verification
 
-All five animals use bundled transparent artwork with six expressions: neutral, happy, thoughtful, eating, refreshing, and asleep. Existing tricks remain available, and each species has its own care props, movement sequence, and quiet sound palette. Artwork was generated for this update with OpenAI image generation. No runtime image service is required.
+All five animals use bundled transparent artwork with six expressions: neutral, happy, thoughtful, eating, refreshing, and asleep. Existing tricks remain available, and each species has its own care props, movement sequence, and quiet sound palette. Companion artwork and the Nooklings app icon were generated for this update with OpenAI image generation. No runtime image service is required.
 
 The macOS workflow builds the app, runs the regression suite, assembles the release bundle, verifies its resources and metadata, and exports light/dark renders of each full care dashboard as the `companion-previews` artifact. The exported content omits the outer scroll container so all controls can be inspected at once.
 

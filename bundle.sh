@@ -7,7 +7,7 @@ APP_NAME="Nooklings"
 BUNDLE_ID="com.ronnie.byte"
 BIN="Nooklings"
 APP_DIR="${APP_NAME}.app"
-ICONSET="Byte.iconset"
+ICON_SOURCE="docs/assets/nooklings-icon.png"
 
 echo "> Building release binary..."
 swift build -c release
@@ -27,13 +27,24 @@ fi
 cp -R "${RESOURCE_BUNDLE}" "${APP_DIR}/Contents/Resources/"
 
 ICON_KEY=""
-if command -v iconutil >/dev/null 2>&1 && [ -d "${ICONSET}" ]; then
+if command -v iconutil >/dev/null 2>&1 && command -v sips >/dev/null 2>&1 && [ -f "${ICON_SOURCE}" ]; then
   echo "> Building app icon..."
+  ICON_WORK_DIR="$(mktemp -d)"
+  trap 'rm -rf "${ICON_WORK_DIR}"' EXIT
+  ICONSET="${ICON_WORK_DIR}/${APP_NAME}.iconset"
+  mkdir -p "${ICONSET}"
+  for size in 16 32 128 256 512; do
+    sips --resampleHeightWidth "${size}" "${size}" "${ICON_SOURCE}" \
+      --out "${ICONSET}/icon_${size}x${size}.png" >/dev/null
+    retina=$((size * 2))
+    sips --resampleHeightWidth "${retina}" "${retina}" "${ICON_SOURCE}" \
+      --out "${ICONSET}/icon_${size}x${size}@2x.png" >/dev/null
+  done
   iconutil -c icns "${ICONSET}" -o "${APP_DIR}/Contents/Resources/${APP_NAME}.icns"
   ICON_KEY="  <key>CFBundleIconFile</key><string>${APP_NAME}</string>"
   echo "  icon installed"
 else
-  echo "> Skipping icon (iconutil or ${ICONSET} not found)"
+  echo "> Skipping icon (iconutil, sips, or ${ICON_SOURCE} not found)"
 fi
 
 cat > "${APP_DIR}/Contents/Info.plist" <<PLIST

@@ -34,6 +34,7 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' Nooklings.app/Contents/Info.plist)" = Nooklings
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' Nooklings.app/Contents/Info.plist)" = com.ronnie.byte
           test -x Nooklings.app/Contents/MacOS/Nooklings
+          test -s Nooklings.app/Contents/Resources/Nooklings.icns
       - name: Verify bundled companion artwork
         run: |
           for animal in trex dolphin dog cat panda; do

@@ -36,7 +36,7 @@ final class ChatGPTCredentialLock {
             withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let descriptor = open(url.path, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, mode_t(0o600))
         guard descriptor >= 0 else {
-            throw ChatGPTConnectionError("Couldn't coordinate your ChatGPT connection. Check access to Byte's data folder.")
+            throw ChatGPTConnectionError("Couldn't coordinate your ChatGPT connection. Check access to Nooklings’ data folder.")
         }
         let lease = Lease(descriptor)
         let deadline = Date().addingTimeInterval(timeout)
@@ -47,7 +47,7 @@ final class ChatGPTCredentialLock {
                 throw ChatGPTConnectionError("Couldn't lock your ChatGPT connection. Try again.")
             }
             guard Date() < deadline else {
-                throw ChatGPTConnectionError("Another Byte instance is updating ChatGPT credentials. Finish or retry its Keychain save, then try again.")
+                throw ChatGPTConnectionError("Another Nooklings instance is updating ChatGPT credentials. Finish or retry its Keychain save, then try again.")
             }
             try await Task.sleep(nanoseconds: 50_000_000)
         }
