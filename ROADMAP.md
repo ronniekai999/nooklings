@@ -29,6 +29,7 @@ Updated: October 18, 2026
 
 ## Next
 
+- [ ] Rename the GitHub repository from `byte` to `nooklings` (requires repository settings access)
 - [x] ChatGPT plan sign-in for the local app, live account model catalog, and provider switching
 - [ ] Validate ChatGPT browser sign-in, Keychain, refresh, and streaming on macOS
 - [ ] Obtain Anthropic approval before adding Claude subscription sign-in

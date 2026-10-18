@@ -30,7 +30,7 @@ Click to chat. Hover to care. Drag to make yourself at home.
 
 **The pet works without an AI connection.** For replies, use an eligible ChatGPT plan through browser sign-in, or connect your own Anthropic API key. Credentials stay in macOS Keychain. Nooklings is built with SwiftUI and AppKit, with no third-party runtime dependencies.
 
-> **Source preview:** Nooklings is currently built from source. Bundles produced by this repository are unsigned. Automated macOS build, test, and bundle checks pass; real sign-in and UI behavior still need manual verification. See the [review and validation notes](docs/CODE_REVIEW.md#validation) for the current evidence.
+> **Source preview:** Nooklings is currently built from source. Bundles produced by this repository are unsigned. Automated macOS build, test, and bundle checks pass; real sign-in and UI behavior still need manual verification. See the [review and validation notes](docs/CODE_REVIEW.md#nooklings-update--october-18-2026) for the current evidence.
 
 <a id="features"></a>
 ## ✨ What you get
@@ -318,7 +318,7 @@ plutil -lint Nooklings.app/Contents/Info.plist
 
 The [macOS workflow](.github/workflows/ci.yml) runs the same sequence. The **68-test suite** passes on macOS 14 with Swift 5.10. Companion regression tests cover legacy-save migration, independent care histories, species-specific needs, elapsed naps, cancellation and duplicate-action protection, corrupted-save preservation, bundled artwork, and light/dark native render checks. Coverage includes request options, usage, persistence, archives, key migration, images, interrupted streams, cancellation, citations, and link handling, plus ChatGPT callback validation, identity signatures/claims, account separation, coordinated token rotation, sign-out during refresh, failed-save recovery, catalog retry, complete loopback sign-in and expired-code recovery, plan limits, and request contracts. Tests use temporary directories, stubbed HTTP streams, and in-memory credential stores; they do not make live provider calls or use your real Keychain.
 
-See the [passing native run](https://github.com/ronniekai999/byte/actions/runs/39100103808) and [readiness review](docs/CODE_REVIEW.md#readiness-review--october-10-2026) for the evidence and hands-on test steps. Live provider sign-in, real Keychain prompts, Login Items approval, and UI/audio behavior remain unverified.
+See the [passing native run](https://github.com/ronniekai999/byte/actions/runs/39100486937) and [readiness review](docs/CODE_REVIEW.md#readiness-review--october-10-2026) for the evidence and hands-on test steps. Live provider sign-in, real Keychain prompts, Login Items approval, and UI/audio behavior remain unverified.
 
 ### Source map
 
