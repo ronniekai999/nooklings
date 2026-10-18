@@ -30,8 +30,12 @@ The next roadmap batch implements:
 - Universal release bundles and a manual signing/notarization workflow with stable
   identity, temporary credentials, hardened runtime, stapling, and Gatekeeper checks.
 
-Native verification is recorded with the final pull-request check. Automated tests
-use mocked providers and isolated credential stores. Real sign-in, hardware display
+The [native PR checks](https://github.com/ronniekai999/nooklings/pull/5/checks)
+cover **90 regression tests**, universal Intel/Apple silicon release compilation,
+metadata/icon checks, and loading all five artwork atlases from a relocated bundle.
+Native tests also verify hot-key registration conflicts and recovery, and export
+compact/expanded chat and all companion renders. The README includes these native
+chat previews. Automated tests use mocked providers and isolated credential stores. Real sign-in, hardware display
 changes, VoiceOver, Login Items, and signed Keychain upgrades still require the
 [installed-app matrix](ACCESSIBILITY.md). Apple credentials have not been supplied;
 the [distribution workflow](DISTRIBUTION.md) is prepared, not a completed notarized

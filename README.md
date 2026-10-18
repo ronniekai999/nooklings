@@ -73,6 +73,13 @@ Click to chat, or press **⌃⌥Space** from any app. Hover to care. Drag to mak
 - **Resizable chat** remembers its size, keeps the panel on a real display, and lets you read older replies while streaming.
 - **No notch required**: Nooklings falls back to the top of the main display.
 
+<p align="center">
+<img src="docs/assets/chat-compact-dark.png" width="280" alt="Compact Nooklings chat with an attachment picker, context estimate, summary control, and resize menu">
+<img src="docs/assets/chat-expanded-light.png" width="390" alt="Expanded Nooklings chat in light mode with a wider, taller transcript">
+</p>
+
+*Native macOS chat renders at compact and expanded sizes. The panel remembers your preferred size.*
+
 <a id="get-started"></a>
 ## 🚀 Get started
 

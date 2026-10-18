@@ -1,8 +1,9 @@
 # Desktop validation
 
-Automated native tests exercise focus requests, shortcut persistence, independent
+Automated native tests exercise focus requests, shortcut persistence and registration
+conflicts, independent
 display constraints, offline care, and chat/care rendering. They do not establish
-real VoiceOver behavior, global-shortcut conflicts, or hardware monitor behavior.
+real VoiceOver behavior, cross-app key delivery, or hardware monitor behavior.
 The following installed-app pass remains necessary on a Mac.
 
 | Scenario | Acceptance |
