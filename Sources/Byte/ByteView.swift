@@ -254,7 +254,11 @@ struct ByteView: View {
     private func quickAction(_ action: CareAction, label: String) -> some View {
         Button { performCare(action) } label: {
             VStack(spacing: 3) {
-                Image(systemName: action.symbol).font(.system(size: 13))
+                if action == .wake {
+                    Image(systemName: "sun.max.fill").font(.system(size: 14))
+                } else {
+                    PropSprite(prop: .object(for: action, companion: model.companion), size: 17)
+                }
                 Text(label).font(.system(size: 9, weight: .medium))
             }.frame(width: 34, height: 34)
         }
@@ -514,7 +518,15 @@ struct ByteView: View {
                         try await animatePlay(companion, gentle: action == .explore)
                     case .rest:
                         propX = 45; propY = -25
-                        withAnimation(.easeInOut(duration: 0.5)) { breachScale = 0.97; breachOffset = 3 }
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            switch companion {
+                            case .trex: breachScale = 0.96; breachOffset = 4
+                            case .dolphin: swimX = 8; breachTilt = 4
+                            case .dog: breachScale = 0.97; breachTilt = 5
+                            case .cat: breachScale = 0.94; breachOffset = 3
+                            case .panda: breachOffset = 5; breachTilt = -3
+                            }
+                        }
                         try await pause(0.7)
                     case .wake:
                         propOpacity = 0
@@ -522,7 +534,16 @@ struct ByteView: View {
                         try await pause(0.4)
                     case .affection:
                         propX = -15; propY = -20
-                        withAnimation(.easeOut(duration: 0.8)) { propY = -40; propOpacity = 0; breachTilt = -4 }
+                        withAnimation(.easeOut(duration: 0.8)) {
+                            propY = -40; propOpacity = 0
+                            switch companion {
+                            case .trex: breachTilt = -4; breachOffset = -2
+                            case .dolphin: breachTilt = 8; swimX = 6
+                            case .dog: breachTilt = 15; breachScale = 1.03
+                            case .cat: breachTilt = -7; swimX = -3
+                            case .panda: breachTilt = -3; breachOffset = 3
+                            }
+                        }
                         try await pause(0.8)
                     }
                 }

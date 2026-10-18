@@ -73,8 +73,19 @@ struct PropSprite: View {
                     .frame(width: 27, height: 21).rotationEffect(.degrees(-30))
                 Capsule().fill(.white.opacity(0.35)).frame(width: 14, height: 3).offset(x: -2, y: -5).rotationEffect(.degrees(-30))
             }
-        case .fish, .squid:
-            symbol(prop == .fish ? "fish.fill" : "water.waves", colors: [.white, .cyan, .blue])
+        case .fish:
+            symbol("fish.fill", colors: [.white, .cyan, .blue])
+        case .squid:
+            ZStack {
+                Ellipse().fill(LinearGradient(colors: [.pink.opacity(0.7), .purple], startPoint: .top, endPoint: .bottom))
+                    .frame(width: 16, height: 25).offset(y: -5)
+                HStack(spacing: 2) {
+                    ForEach(0..<4) { index in
+                        Capsule().fill(.purple.opacity(0.8)).frame(width: 3, height: 12)
+                            .rotationEffect(.degrees(Double(index) * 12 - 18))
+                    }
+                }.offset(y: 12)
+            }
         case .dinner:
             ZStack {
                 bowl
@@ -97,7 +108,15 @@ struct PropSprite: View {
                     }
                 }
             }.rotationEffect(.degrees(prop == .log ? 70 : 20))
-        case .apple: symbol("apple.logo", colors: [.red.opacity(0.8), .red])
+        case .apple:
+            ZStack {
+                HStack(spacing: -8) {
+                    Ellipse().fill(.red.gradient).frame(width: 19, height: 26)
+                    Ellipse().fill(.red.gradient).frame(width: 19, height: 26)
+                }.offset(y: 3)
+                Capsule().fill(.brown).frame(width: 3, height: 9).rotationEffect(.degrees(14)).offset(y: -12)
+                Ellipse().fill(.green.gradient).frame(width: 11, height: 5).rotationEffect(.degrees(-25)).offset(x: 6, y: -13)
+            }
         case .pool, .spring:
             ZStack {
                 Ellipse().fill(.gray.gradient).frame(width: 40, height: 19)
@@ -126,7 +145,12 @@ struct PropSprite: View {
                 Circle().fill(RadialGradient(colors: [.yellow, .green], center: .topLeading, startRadius: 0, endRadius: 30)).frame(width: 29, height: 29)
                 Capsule().stroke(.white.opacity(0.8), lineWidth: 2).frame(width: 15, height: 26).rotationEffect(.degrees(30))
             }
-        case .feather: symbol("leaf.fill", colors: [.pink, .purple])
+        case .feather:
+            ZStack {
+                Ellipse().fill(LinearGradient(colors: [.pink, .purple], startPoint: .top, endPoint: .bottom))
+                    .frame(width: 13, height: 30).rotationEffect(.degrees(28))
+                Capsule().fill(.white.opacity(0.8)).frame(width: 1.5, height: 37).rotationEffect(.degrees(28))
+            }
         case .scent: symbol("pawprint.fill", colors: [.orange.opacity(0.6), .brown])
         case .bubble:
             Circle().fill(.cyan.opacity(0.12)).overlay(Circle().stroke(.cyan.opacity(0.8), lineWidth: 2))

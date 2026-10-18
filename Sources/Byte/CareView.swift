@@ -23,49 +23,52 @@ struct CareView: View {
                     .buttonStyle(.plain).accessibilityLabel("Close care")
             }.padding(16)
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    companions
-                    habitat
-                    if let error = model.storageError {
-                        Label(error, systemImage: "exclamationmark.triangle")
-                            .font(.system(size: 11)).foregroundStyle(.red)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        NeedMeter(label: "Fullness", symbol: "fork.knife", value: model.pet.hunger, accent: accent)
-                        NeedMeter(label: model.companion.hydrationLabel, symbol: "drop.fill", value: model.pet.thirst, accent: accent)
-                        NeedMeter(label: "Energy", symbol: "bolt.fill", value: model.pet.energy, accent: accent)
-                        NeedMeter(label: "Joy", symbol: "heart.fill", value: model.pet.happiness, accent: accent)
-                    }
-                    if model.pet.isResting { restProgress }
-                    feedback
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("ON THE MENU").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary).tracking(1)
-                        LazyVGrid(columns: columns, spacing: 8) {
-                            actionCard(.meal)
-                            actionCard(.snack)
-                        }
-                        actionCard(.water)
-                        Text(model.companion.hydrationHint)
-                            .font(.system(size: 10)).foregroundStyle(.secondary)
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("TIME TOGETHER").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary).tracking(1)
-                        LazyVGrid(columns: columns, spacing: 8) {
-                            actionCard(.play)
-                            actionCard(.explore)
-                            actionCard(model.pet.isResting ? .wake : .rest)
-                            actionCard(.affection)
-                        }
-                    }
-                    if !model.pet.recentCare.isEmpty { recentActivity }
-                }
-                .padding(16)
-            }
+            ScrollView { dashboardContent }
         }
         .frame(width: 370, height: 620)
         .background(.regularMaterial)
+    }
+
+    /// The same content is rendered by CI without the AppKit scroll container.
+    var dashboardContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            companions
+            habitat
+            if let error = model.storageError {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.system(size: 11)).foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            LazyVGrid(columns: columns, spacing: 12) {
+                NeedMeter(label: "Fullness", symbol: "fork.knife", value: model.pet.hunger, accent: accent)
+                NeedMeter(label: model.companion.hydrationLabel, symbol: "drop.fill", value: model.pet.thirst, accent: accent)
+                NeedMeter(label: "Energy", symbol: "bolt.fill", value: model.pet.energy, accent: accent)
+                NeedMeter(label: "Joy", symbol: "heart.fill", value: model.pet.happiness, accent: accent)
+            }
+            if model.pet.isResting { restProgress }
+            feedback
+            VStack(alignment: .leading, spacing: 8) {
+                Text("ON THE MENU").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary).tracking(1)
+                LazyVGrid(columns: columns, spacing: 8) {
+                    actionCard(.meal)
+                    actionCard(.snack)
+                }
+                actionCard(.water)
+                Text(model.companion.hydrationHint)
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("TIME TOGETHER").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary).tracking(1)
+                LazyVGrid(columns: columns, spacing: 8) {
+                    actionCard(.play)
+                    actionCard(.explore)
+                    actionCard(model.pet.isResting ? .wake : .rest)
+                    actionCard(.affection)
+                }
+            }
+            if !model.pet.recentCare.isEmpty { recentActivity }
+        }
+        .padding(16)
     }
 
     private var companions: some View {

@@ -37,24 +37,30 @@ final class CareModelTests: XCTestCase {
     func testCareDashboardRendersForEveryCompanion() throws {
         let f = try CareFixture(); defer { f.clean() }
         let model = f.model()
+        var rendered = Set<Data>()
         for companion in Companion.allCases {
             XCTAssertTrue(model.selectCompanion(companion))
             let rgb = companion.tint
             for scheme in [ColorScheme.light, .dark] {
-                let view = CareView(model: model, accent: Color(red: rgb.0, green: rgb.1, blue: rgb.2),
-                                    mood: .happy, phase: 0, isBusy: false, onCare: { _ in })
+                let dashboard = CareView(model: model, accent: Color(red: rgb.0, green: rgb.1, blue: rgb.2),
+                                         mood: .happy, phase: 0, isBusy: false, onCare: { _ in })
+                let view = dashboard.dashboardContent
+                    .frame(width: 370)
+                    .background(scheme == .dark ? Color(white: 0.12) : Color(white: 0.97))
                     .environment(\.colorScheme, scheme)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
                 let image = try XCTUnwrap(renderer.cgImage, "Couldn't render \(companion.name)")
                 XCTAssertEqual(image.width, 740)
-                XCTAssertEqual(image.height, 1240)
+                XCTAssertGreaterThan(image.height, 1400, "All care cards should be in the full-content preview")
+                let bitmap = NSBitmapImageRep(cgImage: image)
+                let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                XCTAssertTrue(rendered.insert(data).inserted, "Different companions must not produce the same blank preview")
                 if let directory = ProcessInfo.processInfo.environment["BYTE_SNAPSHOT_DIRECTORY"] {
                     let url = URL(fileURLWithPath: directory)
                     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
                     let file = url.appendingPathComponent("\(companion.rawValue)-\(scheme == .dark ? "dark" : "light").png")
-                    let bitmap = NSBitmapImageRep(cgImage: image)
-                    try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: file)
+                    try data.write(to: file)
                 }
             }
         }

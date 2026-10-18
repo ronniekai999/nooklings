@@ -268,7 +268,14 @@ final class ByteModel: ObservableObject {
         case .play, .explore: return "\(action.title(for: companion)) complete. \(companion.name) is beaming."
         case .rest: return "\(companion.name) is resting. Energy will recover over \(Int(companion.napMinutes)) minutes."
         case .wake: return "Welcome back, \(companion.name)."
-        case .affection: return "\(companion.name) feels a little more loved."
+        case .affection:
+            switch companion {
+            case .trex: return "Tiny arms, enormous appreciation."
+            case .dolphin: return "Ripple answers with a happy little whistle."
+            case .dog: return "Biscuit’s tail says it all."
+            case .cat: return "A slow blink and a very contented purr."
+            case .panda: return "Bao leans into your gentle pat."
+            }
         }
     }
 
