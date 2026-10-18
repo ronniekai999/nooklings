@@ -40,6 +40,14 @@ final class CareModelTests: XCTestCase {
         var rendered = Set<Data>()
         for companion in Companion.allCases {
             XCTAssertTrue(model.selectCompanion(companion))
+            if let directory = ProcessInfo.processInfo.environment["NOOKLINGS_SNAPSHOT_DIRECTORY"] {
+                let url = URL(fileURLWithPath: directory)
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                let portrait = try XCTUnwrap(CompanionArtwork.frame(companion, mood: .happy))
+                let bitmap = NSBitmapImageRep(cgImage: portrait)
+                let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                try data.write(to: url.appendingPathComponent("portrait-\(companion.rawValue).png"))
+            }
             let rgb = companion.tint
             for scheme in [ColorScheme.light, .dark] {
                 let dashboard = CareView(model: model, accent: Color(red: rgb.0, green: rgb.1, blue: rgb.2),
@@ -56,7 +64,7 @@ final class CareModelTests: XCTestCase {
                 let bitmap = NSBitmapImageRep(cgImage: image)
                 let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
                 XCTAssertTrue(rendered.insert(data).inserted, "Different companions must not produce the same blank preview")
-                if let directory = ProcessInfo.processInfo.environment["BYTE_SNAPSHOT_DIRECTORY"] {
+                if let directory = ProcessInfo.processInfo.environment["NOOKLINGS_SNAPSHOT_DIRECTORY"] {
                     let url = URL(fileURLWithPath: directory)
                     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
                     let file = url.appendingPathComponent("\(companion.rawValue)-\(scheme == .dark ? "dark" : "light").png")

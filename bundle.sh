@@ -2,9 +2,10 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
-APP_NAME="Byte"
+APP_NAME="Nooklings"
+# Keep the installed app identity so existing preferences and Keychain access survive.
 BUNDLE_ID="com.ronnie.byte"
-BIN="Byte"
+BIN="Nooklings"
 APP_DIR="${APP_NAME}.app"
 ICONSET="Byte.iconset"
 
@@ -18,7 +19,7 @@ mkdir -p "${APP_DIR}/Contents/MacOS"
 mkdir -p "${APP_DIR}/Contents/Resources"
 cp "${BUILD_DIR}/${BIN}" "${APP_DIR}/Contents/MacOS/${APP_NAME}"
 # Bundle the companion artwork for standalone installs.
-RESOURCE_BUNDLE="${BUILD_DIR}/Byte_Byte.bundle"
+RESOURCE_BUNDLE="${BUILD_DIR}/Nooklings_Byte.bundle"
 if [ ! -d "${RESOURCE_BUNDLE}" ]; then
   echo "Missing companion resource bundle: ${RESOURCE_BUNDLE}" >&2
   exit 1
@@ -59,9 +60,9 @@ echo ""
 echo "[OK] Built ${APP_DIR}"
 echo "   Next:"
 echo "   1. mv \"${APP_DIR}\" /Applications/"
-echo "   2. Launch Byte, click the gear, toggle 'Launch at login'"
+echo "   2. Launch ${APP_NAME}, click the gear, toggle 'Launch at login'"
 echo "      (or add it manually: System Settings -> General -> Login Items)"
-echo "   (Unsigned, so on first launch: right-click Byte -> Open, or run"
+echo "   (Unsigned, so on first launch: right-click ${APP_NAME} -> Open, or run"
 echo "    'xattr -dr com.apple.quarantine /Applications/${APP_DIR}')"
 echo ""
 echo "   If the icon doesn't refresh in Finder/Dock, run:"

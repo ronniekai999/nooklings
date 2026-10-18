@@ -32,7 +32,7 @@ struct ByteSprite: View {
 enum CompanionArtwork {
     // Fixed assets, loaded at first access. Never decode PNGs on every animation tick.
     private static var resourceBundle: Bundle {
-        if let url = Bundle.main.resourceURL?.appendingPathComponent("Byte_Byte.bundle"),
+        if let url = Bundle.main.resourceURL?.appendingPathComponent("Nooklings_Byte.bundle"),
            let bundle = Bundle(url: url) { return bundle }
         return .module
     }

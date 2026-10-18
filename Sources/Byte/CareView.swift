@@ -16,7 +16,7 @@ struct CareView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Label("Companion care", systemImage: "pawprint.fill")
+                Label("Nooklings · Care", systemImage: "pawprint.fill")
                     .font(.system(size: 14, weight: .semibold))
                 Spacer()
                 Button { dismiss() } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
@@ -141,8 +141,10 @@ struct CareView: View {
                 Button { onCare(model.pet.suggestedAction) } label: {
                     Label(model.pet.suggestedAction.title(for: model.companion), systemImage: "sparkles")
                         .font(.system(size: 11, weight: .semibold))
+                        .padding(.horizontal, 10).padding(.vertical, 7)
+                        .background(accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 }
-                .buttonStyle(.bordered).tint(accent)
+                .buttonStyle(.plain)
                 .disabled(model.pet.unavailableReason(for: model.pet.suggestedAction, companion: model.companion) != nil)
             }
         }
@@ -159,9 +161,10 @@ struct CareView: View {
                 Text(String(format: "%d:%02d remaining", model.restSecondsRemaining / 60, model.restSecondsRemaining % 60))
                     .monospacedDigit()
             }.font(.system(size: 11))
-            ProgressView(value: max(0, min(1, 1 - Double(model.restSecondsRemaining) / (model.companion.napMinutes * 60))))
-                .tint(accent)
+            CareProgress(value: 1 - Double(model.restSecondsRemaining) / (model.companion.napMinutes * 60), tint: accent)
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Rest progress")
+                .accessibilityValue("\(Int(100 * max(0, min(1, 1 - Double(model.restSecondsRemaining) / (model.companion.napMinutes * 60))))) percent")
         }
     }
 
@@ -218,12 +221,28 @@ private struct NeedMeter: View {
                 Spacer()
                 Text("\(Int(value.rounded()))%").font(.system(size: 11, weight: .semibold, design: .rounded)).monospacedDigit()
             }
-            ProgressView(value: value, total: 100).tint(tint)
+            CareProgress(value: value / 100, tint: tint)
             Text(value < 28 ? "Needs attention" : value < 60 ? "Doing okay" : "Looking good")
                 .font(.system(size: 9)).foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityValue("\(Int(value.rounded())) percent, \(value < 28 ? "needs attention" : "satisfied")")
+    }
+}
+
+private struct CareProgress: View {
+    let value: Double
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            Capsule().fill(tint.opacity(0.13))
+                .overlay(alignment: .leading) {
+                    Capsule().fill(tint.gradient)
+                        .frame(width: geometry.size.width * max(0, min(1, value)))
+                }
+        }
+        .frame(height: 6)
     }
 }

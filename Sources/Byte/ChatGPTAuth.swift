@@ -83,7 +83,7 @@ struct ChatGPTOAuthAttempt {
             fields["login_hint"] = account.email
             if account.tokens?.canUsePlan != true { fields["prompt"] = "consent" }
         } else if clientID == nil {
-            fields["agent_name_hint"] = "Byte"
+            fields["agent_name_hint"] = "Nooklings"
         }
         url.queryItems = fields.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
         return url.url!
@@ -114,7 +114,7 @@ struct ChatGPTOAuthAttempt {
         guard let code = values["code"], !code.isEmpty,
               let returnedClientID, !returnedClientID.isEmpty, returnedClientID != "dynamic_agent_client",
               clientID == nil || clientID == returnedClientID else {
-            throw ChatGPTConnectionError("ChatGPT did not return the expected Byte registration. Try signing in again.")
+            throw ChatGPTConnectionError("ChatGPT did not return the expected Nooklings registration. Try signing in again.")
         }
         return (code, returnedClientID)
     }
@@ -399,7 +399,7 @@ final class ChatGPTAuth: ObservableObject {
         var signedOut = current
         signedOut.tokens = nil
         try save(signedOut, lease: lease, notice: revoked ? nil :
-            "Signed out locally. Remote disconnection wasn't confirmed; disconnect Byte in ChatGPT usage settings.")
+            "Signed out locally. Remote disconnection wasn't confirmed; disconnect Nooklings (previously Byte) in ChatGPT usage settings.")
     }
 
     func retryPendingSave() throws {

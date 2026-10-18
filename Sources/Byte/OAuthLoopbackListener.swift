@@ -145,8 +145,8 @@ final class OAuthLoopbackListener {
 
     private func reply(_ status: Int, connection: NWConnection, id: UUID) {
         let message = status == 200
-            ? "Return to Byte to finish connecting. You can close this tab."
-            : "This sign-in request is invalid. Return to Byte and try again."
+            ? "Return to Nooklings to finish connecting. You can close this tab."
+            : "This sign-in request is invalid. Return to Nooklings and try again."
         let body = Data(message.utf8)
         let header = "HTTP/1.1 \(status) \(status == 200 ? "OK" : "Bad Request")\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: \(body.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n"
         connection.send(content: Data(header.utf8) + body, completion: .contentProcessed { [weak self] _ in

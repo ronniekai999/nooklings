@@ -408,7 +408,7 @@ final class ByteModel: ObservableObject {
     private var systemPrompt: String {
         """
         You are \(companion.name), a witty, warm \(companion.species.lowercased()) companion \
-        who lives in the user's Mac notch in the Byte app. Your personality: \(companion.personality) \
+        who lives in the user's Mac notch in the Nooklings app. Your personality: \(companion.personality) \
         Keep replies short and warm, usually 1–4 sentences, because they appear in a small panel. \
         Remember the conversation naturally. Be useful first, playful second. \
         Your current needs: fullness \(Int(pet.hunger))%, \(companion.hydrationLabel.lowercased()) \(Int(pet.thirst))%, \
@@ -646,7 +646,7 @@ final class ByteModel: ObservableObject {
             saved = try JSONDecoder().decode([Turn].self, from: data)
         } catch {
             historyNeedsRecovery = true
-            storageError = "Couldn't read the saved conversation. Byte will preserve the original before saving a new chat. \(error.localizedDescription)"
+            storageError = "Couldn't read the saved conversation. Nooklings will preserve the original before saving a new chat. \(error.localizedDescription)"
             return
         }
         // drop a trailing empty Byte placeholder if we were quit mid-reply
@@ -914,7 +914,7 @@ final class ByteModel: ObservableObject {
         guard isCurrent(requestID) else { return }
         guard let key = apiKey() else {
             finish(requestID: requestID, responseID: responseID,
-                   failure: "Connect an Anthropic API key to chat with Byte.")
+                   failure: "Connect an Anthropic API key to chat with your companion.")
             return
         }
 
@@ -1040,7 +1040,7 @@ final class ByteModel: ObservableObject {
                     }
                 case "message_stop":
                     if stopReason == "max_tokens" {
-                        return result(.fail("The reply reached its output limit. Ask Byte to continue."))
+                        return result(.fail("The reply reached its output limit. Ask your companion to continue."))
                     }
                     guard emittedText else { return result(.fail("No answer was returned. Try again.")) }
                     return result(.done)

@@ -66,7 +66,7 @@ struct ChatGPTStreamEvent {
             let error = response?["error"] as? [String: Any]
             return Self.errorMessage(error)
         case "response.incomplete":
-            return "The reply couldn't finish. Ask Byte to continue."
+            return "The reply couldn't finish. Ask your companion to continue."
         case "error":
             return Self.errorMessage(object)
         default: return nil

@@ -183,7 +183,7 @@ struct ByteView: View {
                     }
                     Divider()
                     Button("Reset position to notch") { model.onResetPosition?() }
-                    Button("Quit Byte") { NSApp.terminate(nil) }
+                    Button("Quit Nooklings") { NSApp.terminate(nil) }
                 }
                 .help("Hover for actions · click to chat · drag to move")
                 .accessibilityLabel(model.companion.name)
@@ -701,7 +701,7 @@ struct ChatPanel: View {
             get: { model.chatGPT.showPlanWelcome }, set: { model.chatGPT.showPlanWelcome = $0 })) {
             Button("Got it", role: .cancel) {}
         } message: {
-            Text("Eligible AI requests in Byte use your ChatGPT plan or available credits. Review usage and set Byte's limits in ChatGPT settings.")
+            Text("Eligible AI requests in Nooklings use your ChatGPT plan or available credits. Review usage and set Nooklings’ limits in ChatGPT settings.")
         }
     }
 
@@ -1160,7 +1160,7 @@ struct ConnectionView: View {
             if model.provider == .chatGPT {
                 Text("Use your ChatGPT plan")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                Text("Eligible Plus and Pro users can use their plan or credits in Byte. Sign in securely in your browser; credentials stay in your Mac's Keychain.")
+                Text("Eligible Plus and Pro users can use their plan or credits in Nooklings. Sign in securely in your browser; credentials stay in your Mac's Keychain.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 if !model.chatGPT.accounts.isEmpty {
@@ -1202,7 +1202,7 @@ struct ConnectionView: View {
             } else {
                 Text(model.hasKey ? "Claude API key connected" : "Connect your Anthropic API key")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                Text("Claude API usage uses your Anthropic account's API billing or eligible credits. Claude subscription sign-in for Byte requires Anthropic approval.")
+                Text("Claude API usage uses your Anthropic account's API billing or eligible credits. Claude subscription sign-in for Nooklings requires Anthropic approval.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 SecureField("sk-ant-…", text: $model.keyInput)
@@ -1255,7 +1255,7 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Byte settings")
+            Text("Nooklings settings")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
 
             ConnectionView(model: byte)
@@ -1266,7 +1266,7 @@ struct SettingsView: View {
             Toggle("Random check-ins", isOn: $checkins)
             Toggle("Launch at login", isOn: launchAtLogin)
             if loginStatus == .requiresApproval {
-                Text("Allow Byte in Login Items to finish enabling launch at login.")
+                Text("Allow Nooklings in Login Items to finish enabling launch at login.")
                     .font(.system(size: 10, design: .rounded)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Open Login Items") { SMAppService.openSystemSettingsLoginItems() }

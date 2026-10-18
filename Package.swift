@@ -2,8 +2,9 @@
 import PackageDescription
 
 let package = Package(
-    name: "Byte",
+    name: "Nooklings",
     platforms: [.macOS(.v14)],
+    products: [.executable(name: "Nooklings", targets: ["Byte"])],
     targets: [
         .executableTarget(
             name: "Byte",
