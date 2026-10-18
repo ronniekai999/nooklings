@@ -22,6 +22,38 @@ final class SoundPlayer {
         if players.count > 4 { players.removeFirst(players.count - 4) }  // allow brief overlap
     }
 
+    private var careSounds: [String: Data] = [:]
+
+    /// Short quiet cues for care; only the T-Rex's play cue uses the heavy stomp.
+    func playCare(_ action: CareAction, companion: Companion) {
+        if companion == .trex && action == .play { playStomp(); return }
+        let key = "\(companion.rawValue)-\(action.rawValue)"
+        if careSounds[key] == nil {
+            let base: Double
+            switch companion {
+            case .trex: base = 180
+            case .dolphin: base = 780
+            case .dog: base = 360
+            case .cat: base = 510
+            case .panda: base = 260
+            }
+            let duration = 0.22
+            let sampleRate = 44_100.0
+            let samples = (0..<Int(duration * sampleRate)).map { i -> Double in
+                let t = Double(i) / sampleRate
+                let pitch = action == .water ? base * 1.4 : base
+                let envelope = sin(Double.pi * t / duration) * exp(-t * 9)
+                return (sin(2 * .pi * pitch * t) + 0.22 * sin(2 * .pi * pitch * 1.5 * t)) * envelope * 0.30
+            }
+            careSounds[key] = Self.wav(samples, sampleRate: Int(sampleRate))
+        }
+        guard let data = careSounds[key], let player = try? AVAudioPlayer(data: data) else { return }
+        player.volume = 0.18
+        player.play()
+        players.append(player)
+        if players.count > 4 { players.removeFirst(players.count - 4) }
+    }
+
     // MARK: - Synthesis
 
     /// Simple one-pole low-pass over a buffer (used to band-limit noise).

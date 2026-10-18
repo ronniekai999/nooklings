@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 @MainActor
 struct ByteView: View {
     @ObservedObject var model: ByteModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Idle + breach
     @State private var bob = false
@@ -29,14 +30,15 @@ struct ByteView: View {
     @State private var hovering = false
     @State private var isDragging = false
     @State private var showCare = false
-    // Care animations: a prop (mouse / lake / ball) animates around Byte.
-    enum CareScene { case none, feed, water, play }
-    @State private var careScene: CareScene = .none
+    @State private var careScene: CareAction?
+    @State private var careTask: Task<Void, Never>?
+    @State private var activeCareToken: UUID?
+    @State private var carePhase = 0
     @State private var propX: CGFloat = 0
     @State private var propY: CGFloat = 0
     @State private var propScale: CGFloat = 1
     @State private var propOpacity: Double = 0
-    @State private var propFlip = false
+    @State private var propRotation: Double = 0
     // Hover action bar (quick feed/water/play without the big menu)
     @State private var showActions = false
     @State private var hoverBand = false
@@ -48,21 +50,26 @@ struct ByteView: View {
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @State private var secondsToNext = Int.random(in: 10...18)
 
-    private let accent = Color(red: 0.80, green: 0.47, blue: 0.36)
+    private var accent: Color {
+        let c = model.companion.tint
+        return Color(red: c.0, green: c.1, blue: c.2)
+    }
 
     private var mood: ByteSprite.Mood {
+        if model.pet.isResting || careScene == .rest { return .sleeping }
+        if careScene == .meal || careScene == .snack { return carePhase.isMultiple(of: 2) ? .happy : .eating }
+        if careScene == .water { return carePhase.isMultiple(of: 2) ? .neutral : .drinking }
+        if careScene == .play || careScene == .explore || careScene == .affection { return .happy }
         if model.isThinking || model.searching { return .thinking }
         if showHappy { return .happy }
         return model.pet.happiness >= 70 ? .happy : .neutral
     }
 
-    /// A small thought-emoji that floats over Byte when a need is getting low.
-    private var affectEmoji: String? {
-        let p = model.pet
-        if p.hunger < 28 { return "🍖" }
-        if p.thirst < 28 { return "💧" }
-        if p.energy < 25 { return "😴" }
-        if p.happiness < 30 { return "🥺" }
+    private var needSymbol: String? {
+        if model.pet.isResting { return "moon.zzz.fill" }
+        if model.pet.hunger < 28 || model.pet.thirst < 28 || model.pet.energy < 25 || model.pet.happiness < 30 {
+            return model.pet.suggestedAction.symbol
+        }
         return nil
     }
 
@@ -91,12 +98,22 @@ struct ByteView: View {
         }
         .onReceive(tick) { _ in
             model.tickPet()                       // decay needs + maybe a check-in (continues during chat)
-            guard !model.chatOpen else { return }
+            guard !model.chatOpen, !showCare, !model.pet.isResting else { return }
             secondsToNext -= 1
             if secondsToNext <= 0 {
                 secondsToNext = Int.random(in: 9...17)
                 randomMove()
             }
+        }
+        .onDisappear {
+            careTask?.cancel()
+            if let token = activeCareToken { model.cancelCare(token) }
+            hideActionsTask?.cancel()
+            resetCareScene()
+        }
+        .onChange(of: reduceMotion) { _, _ in startIdle() }
+        .onChange(of: model.companion) { _, _ in
+            quip = nil; showHappy = false; secondsToNext = 12
         }
         .onChange(of: model.chatOpen) { _, open in
             guard open else { return }
@@ -126,10 +143,10 @@ struct ByteView: View {
                 .offset(y: 18)
                 .allowsHitTesting(false)
 
-            ByteSprite(scale: 0.72, mood: mood)
+            ByteSprite(scale: 0.90, mood: mood, companion: model.companion)
                 .scaleEffect(breachScale)
                 .rotationEffect(.degrees(breachTilt))
-                .offset(x: swimX, y: (bob ? 2 : 0) + breachOffset)
+                .offset(x: reduceMotion ? 0 : swimX, y: (bob && !reduceMotion && !model.pet.isResting ? 1.5 : 0) + breachOffset)
                 .shadow(color: .black.opacity(0.30), radius: 5, y: 2)
                 .shadow(color: .white.opacity(0.12), radius: 3)
                 .scaleEffect(hovering ? 1.06 : 1.0)
@@ -150,9 +167,9 @@ struct ByteView: View {
                     withAnimation(.easeOut(duration: 0.2)) { hovering = h }
                 }
                 .contextMenu {
-                    Button(model.chatOpen ? "Close chat" : "Ask Byte…") { model.toggleChat() }
-                    Button("Do a trick ✨") { randomMove() }
-                    Button("Care for Byte…") { NSApp.activate(ignoringOtherApps: true); showCare = true }
+                    Button(model.chatOpen ? "Close chat" : "Ask \(model.companion.name)…") { model.toggleChat() }
+                    Button("Do a trick") { randomMove() }.disabled(model.pet.isResting || isBusy)
+                    Button("Care for \(model.companion.name)…") { NSApp.activate(ignoringOtherApps: true); showCare = true }
                     if model.hasArchive {
                         Divider()
                         Button("Reopen last chat") {
@@ -169,28 +186,29 @@ struct ByteView: View {
                     Button("Quit Byte") { NSApp.terminate(nil) }
                 }
                 .help("Hover for actions · click to chat · drag to move")
-                .accessibilityLabel("Byte")
+                .accessibilityLabel(model.companion.name)
                 .accessibilityHint("Opens or closes chat")
                 .accessibilityAddTraits(.isButton)
                 .accessibilityAction { model.toggleChat() }
 
-            if careScene != .none {
-                PropSprite(prop: careScene == .feed ? .mouse : (careScene == .water ? .water : .ball),
-                           pixel: 2.0, flip: propFlip)
+            if let action = careScene {
+                PropSprite(prop: .object(for: action, companion: model.companion), size: 30)
                     .scaleEffect(propScale)
+                    .rotationEffect(.degrees(propRotation))
                     .opacity(propOpacity)
                     .offset(x: propX, y: propY)
                     .allowsHitTesting(false)
             }
 
-            if !model.chatOpen, let e = affectEmoji {
-                Text(e)
-                    .font(.system(size: 16))
-                    .offset(y: -40 + breachOffset)
-                    .opacity(glowPulse ? 1.0 : 0.5)
+            if !model.chatOpen, let symbol = needSymbol {
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(accent)
+                    .padding(6).background(.regularMaterial, in: Circle())
+                    .offset(x: 48, y: -29)
                     .allowsHitTesting(false)
-                    .transition(.scale.combined(with: .opacity))
             }
+
         }
         .frame(height: 92)
         .frame(maxWidth: .infinity)
@@ -198,39 +216,52 @@ struct ByteView: View {
         .onHover { hoverBand = $0; updateActions() }
         .overlay(alignment: .bottom) { actionBar }
         .popover(isPresented: $showCare, arrowEdge: .bottom) {
-            CareView(model: model, accent: accent)
+            CareView(model: model, accent: accent, mood: mood, phase: carePhase,
+                     isBusy: isBusy, onCare: performCare)
         }
     }
 
     // MARK: - Hover action bar
 
     private var actionBar: some View {
-        HStack(spacing: 6) {
-            actionButton(.mouse, "Feed") { doFeed() }
-            actionButton(.water, "Give water") { doWater() }
-            actionButton(.ball, "Play") { doPlay() }
+        HStack(spacing: 3) {
+            quickAction(.meal, label: "Feed")
+            quickAction(.water, label: model.companion == .dolphin ? "Splash" : "Water")
+            quickAction(.play, label: "Play")
+            quickAction(model.pet.isResting ? .wake : .rest, label: model.pet.isResting ? "Wake" : "Rest")
+            Button {
+                NSApp.activate(ignoringOtherApps: true)
+                showCare = true
+            } label: {
+                VStack(spacing: 3) {
+                    Image(systemName: "pawprint.fill").font(.system(size: 13))
+                    Text("Care").font(.system(size: 9, weight: .medium))
+                }.frame(width: 34, height: 34)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Companions and care")
         }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(.ultraThinMaterial))
-        .overlay(Capsule().stroke(accent.opacity(0.30), lineWidth: 1))
-        .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
-        .opacity(showActions && !model.chatOpen && careScene == .none ? 1 : 0)
-        .scaleEffect(showActions ? 1 : 0.85, anchor: .bottom)
-        .allowsHitTesting(showActions && careScene == .none && !model.chatOpen)
+        .padding(5)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().stroke(accent.opacity(0.25), lineWidth: 1))
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .opacity(showActions && !model.chatOpen ? 1 : 0)
+        .allowsHitTesting(showActions && !model.chatOpen)
         .onHover { hoverBar = $0; updateActions() }
-        .offset(y: 8)
+        .offset(y: 13)
     }
 
-    private func actionButton(_ prop: Prop, _ label: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            PropSprite(prop: prop, pixel: 1.5)
-                .frame(width: 28, height: 22)
-                .contentShape(Rectangle())
+    private func quickAction(_ action: CareAction, label: String) -> some View {
+        Button { performCare(action) } label: {
+            VStack(spacing: 3) {
+                Image(systemName: action.symbol).font(.system(size: 13))
+                Text(label).font(.system(size: 9, weight: .medium))
+            }.frame(width: 34, height: 34)
         }
         .buttonStyle(.plain)
-        .help(label)
-        .accessibilityLabel(label)
+        .disabled(isBusy || model.activeCare != nil || model.pet.unavailableReason(for: action, companion: model.companion) != nil)
+        .help(model.pet.unavailableReason(for: action, companion: model.companion) ?? action.title(for: model.companion))
+        .accessibilityLabel(action.title(for: model.companion))
     }
 
     /// Show the bar while the band or the bar is hovered; hide shortly after both clear.
@@ -243,7 +274,7 @@ struct ByteView: View {
         } else {
             hideActionsTask?.cancel()
             hideActionsTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 250_000_000)
+                do { try await Task.sleep(nanoseconds: 250_000_000) } catch { return }
                 if !hoverBand && !hoverBar {
                     withAnimation(.easeOut(duration: 0.2)) { showActions = false }
                 }
@@ -276,12 +307,14 @@ struct ByteView: View {
     // MARK: behaviour
 
     private func startIdle() {
-        withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { bob = true }
-        withAnimation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true)) { glowPulse = true }
+        bob = false; glowPulse = false
+        guard !reduceMotion else { return }
+        withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { bob = true }
+        withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) { glowPulse = true }
     }
 
     private func poke() {
-        breach()
+        if !reduceMotion && !model.pet.isResting { breach() }
         model.toggleChat()
     }
 
@@ -313,7 +346,7 @@ struct ByteView: View {
 
     /// Pick a random behaviour (skipping whatever ran last so it feels organic).
     private func randomMove() {
-        guard !isBusy else { return }
+        guard !isBusy, !model.pet.isResting, model.activeCare == nil, !reduceMotion else { return }
         let moves: [() -> Void] = [breach, swim, spin, wiggle, nod, dive, greet]
         var i = Int.random(in: 0..<moves.count)
         if i == lastMove { i = (i + 1) % moves.count }
@@ -334,7 +367,7 @@ struct ByteView: View {
             }
             try? await Task.sleep(nanoseconds: 500_000_000)
             puff()
-            if soundsOn { SoundPlayer.shared.playStomp() }
+            if soundsOn { SoundPlayer.shared.playCare(.play, companion: model.companion) }
             isBusy = false
         }
     }
@@ -407,7 +440,7 @@ struct ByteView: View {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 360_000_000)
             puff()
-            if soundsOn { SoundPlayer.shared.playStomp() }
+            if soundsOn { SoundPlayer.shared.playCare(.play, companion: model.companion) }
             try? await Task.sleep(nanoseconds: 150_000_000)
             withAnimation(.easeOut(duration: 0.5)) { breachOffset = 0; breachScale = 1.0; breachTilt = 0 }
             try? await Task.sleep(nanoseconds: 520_000_000)
@@ -420,7 +453,7 @@ struct ByteView: View {
         guard !isBusy else { return }
         isBusy = true
         showHappy = true
-        if !model.chatOpen { say(Quips.random()) }
+        if !model.chatOpen { say(model.companion.greeting) }
         Task { @MainActor in
             withAnimation(.easeInOut(duration: 0.18)) { breachOffset = 7; breachTilt = 4 }
             try? await Task.sleep(nanoseconds: 220_000_000)
@@ -436,96 +469,124 @@ struct ByteView: View {
         withAnimation(.easeOut(duration: 0.6)) { rippleScale = 1.6; rippleOpacity = 0.0 }
     }
 
-    // MARK: - Animated care actions
-    // Each summons a pixel-art prop, animates Byte interacting with it, then applies
-    // the stat change at the payoff. Guarded by isBusy so they don't overlap tricks.
+    // MARK: - Shared, cancellable care choreography
 
-    private func doFeed() {
-        guard !isBusy, !model.chatOpen else { return }
-        if model.pet.hunger >= 88 { say(model.feed()); return }   // already stuffed — no mouse
-        isBusy = true; careScene = .feed
-        let fromLeft = Bool.random()
-        propFlip = !fromLeft                       // mouse art faces right; flip if entering from the right
-        propY = 24; propScale = 1; propOpacity = 1
-        propX = fromLeft ? -112 : 112
-        let mouthX: CGFloat = -24                   // just in front of Byte's snout
-        Task { @MainActor in
-            withAnimation(.easeInOut(duration: 0.85)) { propX = mouthX }   // scurry in
-            try? await Task.sleep(nanoseconds: 850_000_000)
-            withAnimation(.easeIn(duration: 0.14)) { breachOffset = 12; breachTilt = -10; breachScale = 1.05 }  // chomp
-            try? await Task.sleep(nanoseconds: 150_000_000)
-            withAnimation(.easeOut(duration: 0.12)) { propOpacity = 0; propScale = 0.4 }   // gulp
-            let reaction = model.feed()
-            withAnimation(.easeOut(duration: 0.32)) { breachOffset = 0; breachTilt = 0; breachScale = 1 }
-            withAnimation { showHappy = true }
-            say(reaction)
-            try? await Task.sleep(nanoseconds: 700_000_000)
-            withAnimation { showHappy = false }
-            careScene = .none; isBusy = false
-        }
-    }
-
-    private func doWater() {
-        guard !isBusy, !model.chatOpen else { return }
-        if model.pet.thirst >= 90 { say(model.water()); return }
-        isBusy = true; careScene = .water
-        propFlip = false; propX = -6; propY = 30
-        propScale = 0.3; propOpacity = 0
-        Task { @MainActor in
-            withAnimation(.easeOut(duration: 0.30)) { propScale = 1; propOpacity = 1 }   // lake rises
-            try? await Task.sleep(nanoseconds: 320_000_000)
-            for _ in 0..<3 {                                                              // sip a few times
-                withAnimation(.easeInOut(duration: 0.20)) { breachOffset = 12; breachTilt = -6 }
-                try? await Task.sleep(nanoseconds: 220_000_000)
-                withAnimation(.easeInOut(duration: 0.18)) { breachOffset = 2; breachTilt = -1 }
-                try? await Task.sleep(nanoseconds: 190_000_000)
-            }
-            withAnimation(.easeOut(duration: 0.25)) { breachOffset = 0; breachTilt = 0 }
-            let reaction = model.water()
-            withAnimation(.easeIn(duration: 0.45)) { propOpacity = 0; propScale = 0.85 }   // lake recedes
-            withAnimation { showHappy = true }
-            say(reaction)
-            try? await Task.sleep(nanoseconds: 650_000_000)
-            withAnimation { showHappy = false }
-            careScene = .none; isBusy = false
-        }
-    }
-
-    private func doPlay() {
-        guard !isBusy, !model.chatOpen else { return }
-        if model.pet.energy < 14 { say(model.play()); return }
-        isBusy = true; careScene = .play
-        propFlip = false; propOpacity = 1; propScale = 1
-        propX = -55; propY = -8
-        Task { @MainActor in
-            for i in 0..<3 {                                       // ball bounces; Byte hops to meet it
-                let up = (i % 2 == 0)
-                withAnimation(.easeOut(duration: 0.24)) {
-                    propX = up ? -32 : -48
-                    propY = up ? -30 : 22
-                }
-                if up {
-                    withAnimation(.easeOut(duration: 0.18)) { breachOffset = -20; breachScale = 1.05 }
+    private func performCare(_ action: CareAction) {
+        guard !isBusy, let token = model.beginCare(action) else { return }
+        isBusy = true; activeCareToken = token; careScene = action; carePhase = 0
+        propOpacity = 1; propScale = 1; propRotation = 0
+        propX = -52; propY = 23
+        let companion = model.companion
+        careTask = Task { @MainActor in
+            defer { resetCareScene() }
+            do {
+                if reduceMotion {
+                    // A static expression and brief feedback still complete every action.
+                    carePhase = 1
+                    try await pause(0.25)
                 } else {
-                    withAnimation(.easeIn(duration: 0.18)) { breachOffset = 0; breachScale = 1 }
+                    switch action {
+                    case .meal, .snack:
+                        withAnimation(.easeOut(duration: 0.4)) { propX = -35; propY = companion == .trex || companion == .dolphin ? -6 : 26 }
+                        try await pause(0.4)
+                        for bite in 1...4 {
+                            carePhase = bite
+                            withAnimation(.easeInOut(duration: 0.17)) {
+                                breachOffset = bite.isMultiple(of: 2) ? 0 : 3
+                                propScale = CGFloat(max(0.15, 1 - Double(bite) * 0.20))
+                            }
+                            try await pause(0.22)
+                        }
+                        withAnimation(.easeOut(duration: 0.2)) { propOpacity = 0; breachOffset = 0 }
+                    case .water:
+                        propX = companion == .dolphin ? 0 : -35
+                        propY = companion == .dolphin ? 8 : 33
+                        for sip in 1...4 {
+                            carePhase = sip
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                breachOffset = companion == .dolphin ? (sip.isMultiple(of: 2) ? 0 : -9) : 2
+                                propScale = sip.isMultiple(of: 2) ? 1 : 1.2
+                                propOpacity = sip.isMultiple(of: 2) ? 0.7 : 1
+                            }
+                            try await pause(0.3)
+                        }
+                    case .play, .explore:
+                        try await animatePlay(companion, gentle: action == .explore)
+                    case .rest:
+                        propX = 45; propY = -25
+                        withAnimation(.easeInOut(duration: 0.5)) { breachScale = 0.97; breachOffset = 3 }
+                        try await pause(0.7)
+                    case .wake:
+                        propOpacity = 0
+                        withAnimation(.easeOut(duration: 0.4)) { breachOffset = -4 }
+                        try await pause(0.4)
+                    case .affection:
+                        propX = -15; propY = -20
+                        withAnimation(.easeOut(duration: 0.8)) { propY = -40; propOpacity = 0; breachTilt = -4 }
+                        try await pause(0.8)
+                    }
                 }
-                try? await Task.sleep(nanoseconds: 250_000_000)
+                try Task.checkCancellation()
+                model.completeCare(token)
+                if soundsOn { SoundPlayer.shared.playCare(action, companion: companion) }
+                if let feedback = model.careFeedback { say(feedback) }
+                showHappy = action != .rest
+                try await pause(reduceMotion ? 0.1 : 0.45)
+            } catch {
+                // Cancellation never awards food/play twice or leaves the UI locked.
+                model.cancelCare(token)
             }
-            withAnimation(.easeOut(duration: 0.30)) { breachOffset = 0; breachScale = 1 }
-            withAnimation(.easeIn(duration: 0.40)) { propX = -120; propY = 28; propOpacity = 0 }  // rolls off
-            let reaction = model.play()
-            withAnimation { showHappy = true }
-            say(reaction)
-            try? await Task.sleep(nanoseconds: 550_000_000)
-            withAnimation { showHappy = false }
-            careScene = .none; isBusy = false
         }
+    }
+
+    private func animatePlay(_ companion: Companion, gentle: Bool) async throws {
+        for beat in 0..<5 {
+            carePhase = beat
+            let up = beat.isMultiple(of: 2)
+            withAnimation(.easeInOut(duration: 0.28)) {
+                switch companion {
+                case .trex:
+                    propX = up ? -40 : 25; propY = 29
+                    swimX = gentle ? (up ? -6 : 6) : (up ? -14 : 12)
+                    breachOffset = gentle ? 0 : (up ? -8 : 0)
+                    breachTilt = up ? -4 : 4
+                case .dolphin:
+                    propX = up ? -35 : 28; propY = gentle ? -20 : -6
+                    swimX = up ? -18 : 18; breachOffset = up ? -18 : 3
+                    breachTilt = up ? -18 : 14
+                case .dog:
+                    propX = up ? -64 : 16; propY = up ? -20 : 27
+                    swimX = up ? -22 : 8; breachOffset = gentle ? 0 : (up ? -10 : 0)
+                    breachTilt = up ? -3 : 3
+                case .cat:
+                    propX = up ? -48 : 10; propY = up ? -25 : 15
+                    breachScale = up ? 0.95 : 1.04
+                    swimX = up ? -5 : -15; breachOffset = gentle ? -2 : (up ? 4 : -14)
+                case .panda:
+                    propX = up ? -35 : 25; propY = 30
+                    propRotation += 100
+                    swimX = up ? -6 : 6; breachTilt = gentle ? 0 : (up ? -13 : 13)
+                }
+            }
+            try await pause(0.3)
+        }
+    }
+
+    private func pause(_ seconds: Double) async throws {
+        try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+    }
+
+    private func resetCareScene() {
+        careScene = nil; activeCareToken = nil; careTask = nil
+        propOpacity = 0; propRotation = 0; carePhase = 0
+        breachOffset = 0; breachScale = 1; breachTilt = 0; swimX = 0
+        showHappy = false; isBusy = false
     }
 
     /// Byte speaking up on his own (need reminders / friendly hellos).
     private func checkIn(_ text: String) {
         guard !model.chatOpen else { return }
-        if !isBusy { greet() }
+        if !isBusy && !reduceMotion && !model.pet.isResting { greet() }
         say(text)
     }
 
@@ -625,7 +686,7 @@ struct ChatPanel: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text("Byte 🦖").font(.system(size: 11, weight: .semibold, design: .rounded))
+            Text(model.companion.name).font(.system(size: 11, weight: .semibold, design: .rounded))
             Spacer()
             Text(model.model).font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
             Button { showSettings.toggle() } label: { Image(systemName: "gearshape") }
@@ -759,7 +820,7 @@ struct ChatPanel: View {
             .help("Paste an image from the clipboard")
             .accessibilityLabel("Paste image")
             .disabled(model.isStreaming)
-            TextField("Ask Byte…", text: $model.draft)
+            TextField("Ask \(model.companion.name)…", text: $model.draft)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, design: .rounded))
                 .focused(focused)
@@ -1058,94 +1119,6 @@ struct CodeBlock: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.30)))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.08)))
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-// MARK: - Care panel (Byte's needs + feed/water/play/rest)
-
-@MainActor
-struct CareView: View {
-    @ObservedObject var model: ByteModel
-    let accent: Color
-    @State private var reaction: String? = nil
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack {
-                Text("Byte's needs")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                Spacer()
-                Text(model.petAgeDays == 0 ? "newly hatched" : "\(model.petAgeDays)d old")
-                    .font(.system(size: 10)).foregroundStyle(.secondary)
-            }
-
-            NeedBar(label: "Hunger",    emoji: "🍖", value: model.pet.hunger)
-            NeedBar(label: "Thirst",    emoji: "💧", value: model.pet.thirst)
-            NeedBar(label: "Energy",    emoji: "😴", value: model.pet.energy)
-            NeedBar(label: "Happiness", emoji: "❤️", value: model.pet.happiness)
-
-            HStack(spacing: 7) {
-                careButton("Feed",  "🍖") { model.feed() }
-                careButton("Water", "💧") { model.water() }
-                careButton("Play",  "🎾") { model.play() }
-                careButton("Rest",  "😴") { model.rest() }
-            }
-
-            Text(reaction ?? " ")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .animation(.easeInOut(duration: 0.2), value: reaction)
-        }
-        .padding(14)
-        .frame(width: 252)
-    }
-
-    private func careButton(_ label: String, _ emoji: String,
-                            _ action: @escaping () -> String) -> some View {
-        Button {
-            withAnimation { reaction = action() }
-        } label: {
-            VStack(spacing: 3) {
-                Text(emoji).font(.system(size: 19))
-                Text(label).font(.system(size: 9, weight: .medium))
-            }
-            .frame(maxWidth: .infinity).padding(.vertical, 7)
-            .background(RoundedRectangle(cornerRadius: 9).fill(accent.opacity(0.12)))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-@MainActor
-struct NeedBar: View {
-    let label: String
-    let emoji: String
-    let value: Double
-
-    private var color: Color {
-        value > 55 ? Color(red: 0.32, green: 0.72, blue: 0.42)
-        : (value > 28 ? Color(red: 0.90, green: 0.62, blue: 0.22)
-                      : Color(red: 0.86, green: 0.34, blue: 0.34))
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Text("\(emoji) \(label)").font(.system(size: 10))
-                Spacer()
-                Text("\(Int(value.rounded()))%")
-                    .font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.10))
-                    Capsule().fill(color)
-                        .frame(width: max(4, geo.size.width * CGFloat(value) / 100))
-                        .animation(.easeOut(duration: 0.25), value: value)
-                }
-            }
-            .frame(height: 7)
-        }
     }
 }
 

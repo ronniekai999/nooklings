@@ -17,6 +17,13 @@ rm -rf "${APP_DIR}"
 mkdir -p "${APP_DIR}/Contents/MacOS"
 mkdir -p "${APP_DIR}/Contents/Resources"
 cp "${BUILD_DIR}/${BIN}" "${APP_DIR}/Contents/MacOS/${APP_NAME}"
+# Bundle the companion artwork for standalone installs.
+RESOURCE_BUNDLE="${BUILD_DIR}/Byte_Byte.bundle"
+if [ ! -d "${RESOURCE_BUNDLE}" ]; then
+  echo "Missing companion resource bundle: ${RESOURCE_BUNDLE}" >&2
+  exit 1
+fi
+cp -R "${RESOURCE_BUNDLE}" "${APP_DIR}/Contents/Resources/"
 
 ICON_KEY=""
 if command -v iconutil >/dev/null 2>&1 && [ -d "${ICONSET}" ]; then
