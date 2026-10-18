@@ -34,6 +34,40 @@ private struct CareFixture {
 
 final class CareModelTests: XCTestCase {
     @MainActor
+    func testShortcutOpensAndRefocusesWithoutTogglingOrReadingContext() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let model = f.model()
+        var opens = 0, focuses = 0
+        model.onChatOpenChanged = { if $0 { opens += 1 } }
+        model.onFocusChat = { focuses += 1 }
+        model.draft = "Keep my draft"
+        model.openAndFocusChat()
+        let first = model.focusRequest
+        model.openAndFocusChat()
+        XCTAssertTrue(model.chatOpen)
+        XCTAssertEqual(opens, 1)
+        XCTAssertEqual(focuses, 2)
+        XCTAssertNotEqual(first, model.focusRequest)
+        XCTAssertEqual(model.draft, "Keep my draft")
+        XCTAssertTrue(model.turns.isEmpty)
+        XCTAssertNil(model.pendingImage)
+        model.toggleChat()
+        XCTAssertEqual(model.draft, "Keep my draft")
+    }
+
+    @MainActor
+    func testShortcutPreferencePersistsAndRejectsUnmodifiedKeys() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let shortcut = GlobalShortcut(defaults: f.defaults)
+        XCTAssertFalse(shortcut.set(ShortcutSpec(keyCode: 0, modifiers: 0, keyLabel: "A")))
+        XCTAssertNotNil(shortcut.error)
+        XCTAssertTrue(shortcut.set(.standard))
+        XCTAssertEqual(GlobalShortcut(defaults: f.defaults).configuration, .standard)
+        XCTAssertTrue(shortcut.set(nil))
+        XCTAssertNil(GlobalShortcut(defaults: f.defaults).configuration)
+    }
+
+    @MainActor
     func testCareDashboardRendersForEveryCompanion() throws {
         let f = try CareFixture(); defer { f.clean() }
         let model = f.model()

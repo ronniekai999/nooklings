@@ -122,6 +122,13 @@ struct ByteView: View {
                 inputFocused = true
             }
         }
+        .onChange(of: model.focusRequest) { _, _ in
+            inputFocused = false
+            Task { @MainActor in
+                await Task.yield()
+                inputFocused = true
+            }
+        }
     }
 
     private var band: some View {
@@ -290,7 +297,8 @@ struct ByteView: View {
     @ViewBuilder private var bubbleArea: some View {
         if model.chatOpen {
             ChatPanel(model: model, focused: $inputFocused, accent: accent)
-                .frame(width: 320)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 16).padding(.bottom, 12)
                 .transition(.scale(scale: 0.9, anchor: .top).combined(with: .opacity))
         } else if let q = quip {
             SpeechBubble(text: q, accent: accent)
@@ -635,6 +643,8 @@ struct ChatPanel: View {
     @State private var dots = ""
     @State private var showSettings = false
     @State private var showArchives = false
+    @State private var followsLatest = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let dotTimer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -677,6 +687,16 @@ struct ChatPanel: View {
                 if model.sessionInTok + model.sessionOutTok > 0 { costFooter }
             } else {
                 signIn
+            }
+            HStack {
+                Spacer()
+                Menu {
+                    Button("Larger chat") { model.onResizeChat?(CGSize(width: 100, height: 100)) }
+                    Button("Smaller chat") { model.onResizeChat?(CGSize(width: -100, height: -100)) }
+                } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
+                .menuStyle(.borderlessButton).fixedSize()
+                .accessibilityLabel("Resize chat")
+                .help("Resize chat here, or drag a window edge")
             }
         }
         .padding(12)
@@ -762,14 +782,27 @@ struct ChatPanel: View {
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .padding(.vertical, 2)
+                .background(ScrollPositionObserver { followsLatest = $0 })
             }
-            .frame(maxHeight: 240)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .bottomTrailing) {
+                if !followsLatest {
+                    Button("Jump to latest") {
+                        followsLatest = true
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }.buttonStyle(.bordered).padding(4)
+                }
+            }
             .onChange(of: model.turns.last?.text) {
-                withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                if followsLatest {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                }
             }
             .onChange(of: model.turns.count) {
-                withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                if model.isStreaming && model.turns.last?.text.isEmpty == true { followsLatest = true }
+                if followsLatest { proxy.scrollTo("bottom", anchor: .bottom) }
             }
+            .onAppear { proxy.scrollTo("bottom", anchor: .bottom) }
         }
     }
 
@@ -821,7 +854,7 @@ struct ChatPanel: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(isUser ? accent : Color.primary.opacity(0.08))
             )
-            .frame(maxWidth: 236, alignment: isUser ? .trailing : .leading)
+            .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
             .contextMenu { if !turn.text.isEmpty { Button("Copy") { copyText(turn.text) } } }
             if !isUser { Spacer(minLength: 28) }
         }
@@ -1265,6 +1298,7 @@ struct SettingsView: View {
             Toggle("Web search", isOn: $webSearch)
             Toggle("Sound effects", isOn: $sounds)
             Toggle("Random check-ins", isOn: $checkins)
+            ShortcutSettings(shortcut: byte.shortcut)
             Toggle("Launch at login", isOn: launchAtLogin)
             if loginStatus == .requiresApproval {
                 Text("Allow Nooklings in Login Items to finish enabling launch at login.")
@@ -1408,6 +1442,7 @@ struct ArchivesView: View {
                                 .buttonStyle(.plain)
                                 .foregroundStyle(.secondary)
                                 .help("Delete this saved chat")
+                                .accessibilityLabel("Delete saved chat: \(it.preview)")
                             }
                             .padding(6)
                             .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))

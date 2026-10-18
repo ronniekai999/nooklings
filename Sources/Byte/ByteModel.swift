@@ -53,6 +53,8 @@ final class ByteModel: ObservableObject {
     }
 
     @Published var chatOpen = false
+    @Published private(set) var focusRequest = UUID()
+    let shortcut: GlobalShortcut
     @Published var draft = ""
     @Published var turns: [Turn] = []
     @Published var isThinking = false      // waiting on the first text token (or retrying)
@@ -105,6 +107,7 @@ final class ByteModel: ObservableObject {
         self.configDirectory = configDirectory ?? URL(fileURLWithPath:
             (NSHomeDirectory() as NSString).appendingPathComponent(".config/byte"))
         self.defaults = defaults
+        self.shortcut = GlobalShortcut(defaults: defaults)
         self.keyStore = keyStore
         self.session = session
         self.environment = environment
@@ -451,13 +454,19 @@ final class ByteModel: ObservableObject {
     }
 
     func toggleChat() {
-        chatOpen.toggle()
-        if chatOpen { NSApp.activate(ignoringOtherApps: true) }
-        else { draft = "" }
-        onChatOpenChanged?(chatOpen)
+        if chatOpen { chatOpen = false; onChatOpenChanged?(false) }
+        else { openAndFocusChat() }
+    }
+
+    func openAndFocusChat() {
+        if !chatOpen { chatOpen = true; onChatOpenChanged?(true) }
+        onFocusChat?()
+        focusRequest = UUID()
     }
 
     var onChatOpenChanged: (@MainActor (Bool) -> Void)?
+    var onFocusChat: (@MainActor () -> Void)?
+    var onResizeChat: (@MainActor (CGSize) -> Void)?
 
     // Window dragging / pinning (wired up by AppDelegate). Byte can be dragged
     // anywhere on screen; his position is persisted and restored on launch.

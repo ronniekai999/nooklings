@@ -21,13 +21,17 @@ final class NotchWindow: NSWindow {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var window: NotchWindow!
     let model = ByteModel()
 
     private var expanded = false
     private let compact = NSSize(width: 220, height: 170)
-    private let opened  = NSSize(width: 360, height: 560)
+    private var opened: NSSize {
+        let d = AppPreferences.shared
+        return NSSize(width: max(360, min(1000, d.double(forKey: "byte.panelWidth"))),
+                      height: d.object(forKey: "byte.panelHeight") == nil ? 560 : max(480, min(1200, d.double(forKey: "byte.panelHeight"))))
+    }
 
     // Pinned position (top-center anchor in global screen coords), persisted.
     private var dragStartOrigin = CGPoint.zero
@@ -56,12 +60,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.collectionBehavior = [.canJoinAllSpaces, .stationary,
                                      .fullScreenAuxiliary, .ignoresCycle]
         self.window = window
+        window.delegate = self
 
         position()
         window.orderFrontRegardless()
 
         // Grow/shrink the window when the chat panel opens or closes.
         model.onChatOpenChanged = { [weak self] open in self?.setExpanded(open) }
+        model.onFocusChat = { [weak self] in
+            self?.window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        model.shortcut.start { [weak self] in self?.model.openAndFocusChat() }
+        model.onResizeChat = { [weak self] delta in self?.resizeChat(by: delta) }
 
         // Drag-to-move / pin-anywhere.
         model.onDragBegan     = { [weak self] in self?.dragBegan() }
@@ -83,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         model.prepareForTermination()
+        model.shortcut.stop()
     }
 
     @objc private func screensChanged() { position() }
@@ -90,6 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setExpanded(_ open: Bool) {
         guard expanded != open else { return }
         expanded = open
+        window.styleMask = open ? [.borderless, .resizable] : [.borderless]
         position(animated: true)
     }
 
@@ -98,23 +111,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// kept fully on whichever display the anchor lands on.
     private func position(animated: Bool = false) {
         let size = expanded ? opened : compact
-        var (ax, aTop) = anchorPoint()
-
-        // If the pinned point is on no current display (e.g. a monitor was
-        // unplugged), fall back to the notch.
-        var host = screen(containing: CGPoint(x: ax, y: aTop - 1))
-        if host == nil, let s = notchedScreen() {
-            host = s; ax = s.frame.midX; aTop = s.frame.maxY
-        }
-        guard let disp = host ?? NSScreen.main else { return }
-
-        var x = ax - size.width / 2
-        var y = aTop - size.height                       // origin is bottom-left
-        let f = disp.frame
-        x = min(max(x, f.minX), f.maxX - size.width)
-        y = min(max(y, f.minY), f.maxY - size.height)
-        window.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height),
-                        display: true, animate: animated)
+        let (ax, aTop) = anchorPoint()
+        guard let frame = WindowPlacement.frame(anchor: CGPoint(x: ax, y: aTop), size: size,
+                                                displays: NSScreen.screens.map(\.visibleFrame)) else { return }
+        window.minSize = NSSize(width: min(360, frame.width), height: min(480, frame.height))
+        window.setFrame(frame, display: true,
+                        animate: animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
     }
 
     /// Top-center anchor: the user's pinned point if set, else the notch.
@@ -125,11 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return (CGFloat(d.double(forKey: pinXKey)), CGFloat(d.double(forKey: pinTopYKey)))
         }
         let s = notchedScreen() ?? NSScreen.main
-        return (s?.frame.midX ?? 0, s?.frame.maxY ?? 0)
-    }
-
-    private func screen(containing p: CGPoint) -> NSScreen? {
-        NSScreen.screens.first { NSPointInRect(p, $0.frame) }
+        return (s?.visibleFrame.midX ?? 0, s?.visibleFrame.maxY ?? 0)
     }
 
     // MARK: - Drag to move / pin
@@ -138,15 +136,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func dragChanged(_ t: CGSize) {
         // SwiftUI translation grows down/right; window origin grows up/right.
-        var o = CGPoint(x: dragStartOrigin.x + t.width,
+        let o = CGPoint(x: dragStartOrigin.x + t.width,
                         y: dragStartOrigin.y - t.height)
         let s = window.frame.size
-        let union = NSScreen.screens.reduce(CGRect.null) { $0.union($1.frame) }
-        if !union.isNull {
-            o.x = min(max(o.x, union.minX), union.maxX - s.width)
-            o.y = min(max(o.y, union.minY), union.maxY - s.height)
+        if let frame = WindowPlacement.frame(anchor: CGPoint(x: o.x + s.width / 2, y: o.y + s.height),
+                                             size: s, displays: NSScreen.screens.map(\.visibleFrame)) {
+            window.setFrame(frame, display: true)
         }
-        window.setFrameOrigin(o)
     }
 
     private func dragEnded() {
@@ -169,5 +165,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func notchedScreen() -> NSScreen? {
         if let s = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) { return s }
         return NSScreen.main
+    }
+
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        let visible = sender.screen?.visibleFrame.size ?? frameSize
+        return NSSize(width: min(visible.width, max(360, frameSize.width)),
+                      height: min(visible.height, max(480, frameSize.height)))
+    }
+
+    func windowDidEndLiveResize(_ notification: Notification) {
+        guard expanded else { return }
+        savePanelSize(); dragEnded()
+    }
+
+    private func savePanelSize() {
+        AppPreferences.shared.set(window.frame.width, forKey: "byte.panelWidth")
+        AppPreferences.shared.set(window.frame.height, forKey: "byte.panelHeight")
+    }
+
+    private func resizeChat(by delta: CGSize) {
+        guard expanded else { return }
+        let f = window.frame
+        let size = NSSize(width: max(360, f.width + delta.width), height: max(480, f.height + delta.height))
+        if let frame = WindowPlacement.frame(anchor: CGPoint(x: f.midX, y: f.maxY), size: size,
+                                             displays: NSScreen.screens.map(\.visibleFrame)) {
+            window.setFrame(frame, display: true)
+            savePanelSize(); dragEnded()
+        }
     }
 }
