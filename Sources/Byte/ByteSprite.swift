@@ -36,6 +36,7 @@ enum CompanionArtwork {
         return .module
     }
 
+    /// Decodes each atlas once and caches isolated expressions on a shared baseline.
     private static let frames: [Companion: [CGImage]] = {
         var result: [Companion: [CGImage]] = [:]
         for companion in Companion.allCases {
@@ -80,6 +81,7 @@ enum CompanionArtwork {
         return result
     }()
 
+    /// Returns a cached expression, or nil if the companion's full atlas could not load.
     static func frame(_ companion: Companion, mood: ByteSprite.Mood) -> CGImage? {
         guard let images = frames[companion], images.count == ByteSprite.Mood.allCases.count else { return nil }
         return images[mood.rawValue]

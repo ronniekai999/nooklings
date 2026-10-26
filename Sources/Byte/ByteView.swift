@@ -245,6 +245,7 @@ struct ByteView: View {
 
     // MARK: - Hover action bar
 
+    /// Quick care controls step aside while a care scene plays so props stay visible.
     private var actionBar: some View {
         HStack(spacing: 3) {
             quickAction(.meal, label: "Feed")
@@ -340,6 +341,7 @@ struct ByteView: View {
         withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) { glowPulse = true }
     }
 
+    /// Handles a stationary click with a chat toggle and an optional awake-pet trick.
     private func poke() {
         if !reduceMotion && !model.pet.isResting {
             if model.companion == .duck { waddle() } else { breach() }
@@ -505,6 +507,8 @@ struct ByteView: View {
 
     // MARK: - Shared, cancellable care choreography
 
+    /// Reserves a single action, animates its routine, and awards care at the payoff.
+    /// Cancellation releases an unfinished reservation and restores idle presentation.
     private func performCare(_ action: CareAction) {
         guard !isBusy, let token = model.beginCare(action) else { return }
         isBusy = true; activeCareToken = token; careScene = action; carePhase = 0
@@ -604,6 +608,8 @@ struct ByteView: View {
         }
     }
 
+    /// Plays the species' five-beat game or exploration sequence without awarding care.
+    /// Throws on cancellation so the calling care task can release its reservation.
     private func animatePlay(_ companion: Companion, gentle: Bool) async throws {
         for beat in 0..<5 {
             carePhase = beat
@@ -639,16 +645,19 @@ struct ByteView: View {
         }
     }
 
+    /// Waits between animation beats while allowing the care task to be canceled.
     private func pause(_ seconds: Double) async throws {
         try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
     }
 
+    /// Copies shared duck geometry into the notch scene; this only changes presentation.
     private func applyDuckPose(_ action: CareAction, phase: Int) {
         let pose = DuckCarePose.frame(for: action, phase: phase)
         swimX = pose.x; breachOffset = pose.y; breachTilt = pose.tilt; breachScale = pose.scale
         propX = pose.propX; propY = pose.propY; propScale = pose.propScale; propRotation = pose.propTilt
     }
 
+    /// Clears transient props and transforms after the caller settles the model's token.
     private func resetCareScene() {
         careScene = nil; activeCareToken = nil; careTask = nil
         propOpacity = 0; propRotation = 0; carePhase = 0

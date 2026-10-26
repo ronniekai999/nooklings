@@ -164,6 +164,7 @@ final class CareModelTests: XCTestCase {
         }
     }
 
+    /// Confirms duck care is awarded once, survives relaunch, and preserves every older pet.
     @MainActor
     func testPuddleKeepsIndependentCareAndRestWithoutResettingExistingFriends() throws {
         let f = try CareFixture(); defer { f.clean() }
@@ -200,6 +201,8 @@ final class CareModelTests: XCTestCase {
         }
     }
 
+    /// Renders all duck care contexts under both motion policies, including a settled nap.
+    /// When requested, exports the native images for documentation and visual inspection.
     @MainActor
     func testPuddleCareScenesRenderWithAndWithoutReducedMotion() throws {
         let f = try CareFixture(); defer { f.clean() }

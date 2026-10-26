@@ -7,6 +7,7 @@ enum CareProp {
     case target, hoop, ball, feather, log, scent, bubble, sunbeam, leaf, heart, moon
     case crumble, peas, dabble, lilyPad, duckweed, nest
 
+    /// Selects the meal or treat artwork for the animal's named feeding routine.
     static func food(for companion: Companion, snack: Bool) -> CareProp {
         switch companion {
         case .trex: return .meat
@@ -17,6 +18,7 @@ enum CareProp {
         case .duck: return snack ? .peas : .crumble
         }
     }
+    /// Selects a drinking vessel or species-specific refresh prop.
     static func hydration(for companion: Companion) -> CareProp {
         switch companion {
         case .trex: return .pool
@@ -27,6 +29,7 @@ enum CareProp {
         case .duck: return .dabble
         }
     }
+    /// Selects the active-game or gentle-exploration prop for a companion.
     static func toy(for companion: Companion, gentle: Bool) -> CareProp {
         if gentle {
             switch companion {
@@ -46,6 +49,7 @@ enum CareProp {
         case .duck: return .lilyPad
         }
     }
+    /// Maps a care action to the same object in its card, hover control, and animation.
     static func object(for action: CareAction, companion: Companion) -> CareProp {
         switch action {
         case .meal, .snack: return food(for: companion, snack: action == .snack)
@@ -70,6 +74,7 @@ struct PropSprite: View {
             .accessibilityHidden(true)
     }
 
+    /// Draws care objects in a 40-point canvas before the caller's size is applied.
     @ViewBuilder private var artwork: some View {
         switch prop {
         case .meat:
@@ -240,6 +245,7 @@ struct PropSprite: View {
             .fill(LinearGradient(colors: [.white, Color(white: 0.65)], startPoint: .top, endPoint: .bottom))
             .frame(width: 34, height: 17).offset(y: 5)
     }
+    /// Renders an SF Symbol with the same size and shaded palette as the vector props.
     private func symbol(_ name: String, colors: [Color]) -> some View {
         Image(systemName: name).font(.system(size: 29, weight: .medium))
             .foregroundStyle(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))

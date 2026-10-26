@@ -13,6 +13,8 @@ struct CareView: View {
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
     private let duckSceneScale: CGFloat = 1.32 / 0.90
+    /// Uses the active duck routine, or its ongoing nap, to place the preview.
+    /// A fixed beat preserves the scene under Reduce Motion; other pets return nil.
     private func duckPose(reducingMotion: Bool) -> DuckCarePose? {
         guard model.companion == .duck,
               let action = model.activeCare ?? (model.pet.isResting ? .rest : nil) else { return nil }
@@ -108,7 +110,8 @@ struct CareView: View {
         habitat(reducingMotion: reduceMotion)
     }
 
-    // Explicit presentation input lets previews exercise the system's read-only setting.
+    /// Renders the selected companion's habitat, expression, and active care object.
+    /// The explicit motion policy also lets native previews exercise the read-only setting.
     func habitat(reducingMotion reduceMotion: Bool) -> some View {
         let duckPose = self.duckPose(reducingMotion: reduceMotion)
         return ZStack(alignment: .topLeading) {
@@ -193,6 +196,7 @@ struct CareView: View {
         }
     }
 
+    /// Presents a routine with its prop, expected effects, and any reason it is unavailable.
     private func actionCard(_ action: CareAction) -> some View {
         let reason = model.pet.unavailableReason(for: action, companion: model.companion)
         return Button { onCare(action) } label: {

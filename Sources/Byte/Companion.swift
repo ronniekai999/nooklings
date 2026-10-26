@@ -133,6 +133,7 @@ enum Companion: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Care tuning follows the stable `allCases` order; gains are capped by `PetState`.
     var mealGain: Double { [38, 32, 34, 30, 28, 29][index] }
     var snackGain: Double { [16, 15, 12, 14, 12, 13][index] }
     var waterGain: Double { [42, 34, 40, 36, 38, 35][index] }
@@ -140,6 +141,7 @@ enum Companion: String, Codable, CaseIterable, Identifiable {
     var playJoy: Double { [30, 32, 30, 28, 26, 29][index] }
     var napMinutes: Double { [5, 4, 5, 3, 6, 4][index] }
     var napGainPerMinute: Double { [11, 10, 10, 14, 9, 12][index] }
+    /// Fullness earned by exploration; only Puddle's duckweed hunt provides food.
     var forageGain: Double { self == .duck ? 6 : 0 }
     var waterJoy: Double {
         switch self {
@@ -172,6 +174,7 @@ enum CareAction: String, CaseIterable, Codable, Identifiable {
     case meal, snack, water, play, explore, rest, wake, affection
     var id: String { rawValue }
 
+    /// The selected animal's routine name, shared by controls, history, and reminders.
     func title(for companion: Companion) -> String {
         switch self {
         case .meal: return companion.meal
@@ -205,6 +208,7 @@ enum CareAction: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    /// Describes nominal gains and costs before need caps or unavailable-action checks.
     func detail(for companion: Companion) -> String {
         switch self {
         case .meal: return "+\(Int(companion.mealGain)) fullness"

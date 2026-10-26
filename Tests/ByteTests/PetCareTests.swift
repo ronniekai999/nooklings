@@ -63,6 +63,7 @@ final class PetCareTests: XCTestCase {
         XCTAssertEqual(pet.careCount, 1)
     }
 
+    /// Guards established species tuning and distinct game/refresh names as pets are added.
     func testFoodHydrationAndPlayHaveSpeciesSpecificEffects() {
         var dino = PetState(now: start), dolphin = PetState(now: start), panda = PetState(now: start)
         dino.hunger = 30; dolphin.hunger = 30; panda.hunger = 30
@@ -83,6 +84,7 @@ final class PetCareTests: XCTestCase {
         XCTAssertEqual(Set(Companion.allCases.map(\.hydrationAction)).count, Companion.allCases.count)
     }
 
+    /// Exercises a complete duck routine, then reloads a nap to verify timed offline recovery.
     func testPuddleRoutineIncludesForagingAndOfflineNestRecovery() throws {
         var pet = PetState(now: start)
         pet.hunger = 30; pet.thirst = 30; pet.energy = 60; pet.happiness = 20
@@ -111,6 +113,7 @@ final class PetCareTests: XCTestCase {
         XCTAssertEqual(loaded.recentCare.first?.action, .rest)
     }
 
+    /// Foraging must cap food/joy and respect need gates instead of becoming free care.
     func testDuckweedBonusIsBoundedAndStillRequiresEnoughEnergyAndWater() {
         var pet = PetState(now: start)
         pet.hunger = 99; pet.happiness = 97; pet.energy = 30; pet.thirst = 30
@@ -178,6 +181,7 @@ final class PetCareTests: XCTestCase {
         XCTAssertEqual(loaded.recentCare.first?.action, .affection)
     }
 
+    /// Every declared animal and mood must decode to usable bundled artwork.
     func testEveryCompanionExpressionIsBundled() {
         for companion in Companion.allCases {
             for mood in ByteSprite.Mood.allCases {

@@ -12,6 +12,9 @@ struct DuckCarePose {
     var propScale: CGFloat = 1
     var propTilt: Double = 0
 
+    /// Returns presentation geometry for one care beat without changing pet needs.
+    /// Odd/even phases alternate pecks and paddles; Reduce Motion callers freeze a beat.
+    /// Offsets use the notch scene's scale and must scale with a larger preview.
     static func frame(for action: CareAction, phase: Int) -> Self {
         let dip = !phase.isMultiple(of: 2)
         switch action {

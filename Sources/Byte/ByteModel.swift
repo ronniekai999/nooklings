@@ -283,6 +283,8 @@ final class ByteModel: ObservableObject {
         careToken = nil; activeCare = nil; careFeedback = "Ready when you are."
     }
 
+    /// Supplies species-specific feedback after an action has successfully awarded care.
+    /// Unavailable and canceled actions use their own feedback instead.
     private func reaction(to action: CareAction) -> String {
         switch action {
         case .meal, .snack:
