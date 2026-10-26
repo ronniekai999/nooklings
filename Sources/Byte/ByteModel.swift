@@ -266,6 +266,8 @@ final class ByteModel: ObservableObject {
         return token
     }
 
+    /// Settles the matching reservation once and persists a successfully awarded action.
+    /// Stale tokens cannot complete a newer routine or overwrite its feedback.
     func completeCare(_ token: UUID) {
         guard careToken == token, let action = activeCare else { return }
         let applied = pet.perform(action, companion: companion, at: now())
@@ -278,6 +280,7 @@ final class ByteModel: ObservableObject {
         }
     }
 
+    /// Releases the matching reservation without awarding care; stale tokens are ignored.
     func cancelCare(_ token: UUID) {
         guard careToken == token else { return }
         careToken = nil; activeCare = nil; careFeedback = "Ready when you are."

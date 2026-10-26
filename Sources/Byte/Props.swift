@@ -49,7 +49,7 @@ enum CareProp {
         case .duck: return .lilyPad
         }
     }
-    /// Maps a care action to the same object in its card, hover control, and animation.
+    /// Maps a care action to its default scene or card prop.
     static func object(for action: CareAction, companion: Companion) -> CareProp {
         switch action {
         case .meal, .snack: return food(for: companion, snack: action == .snack)

@@ -97,6 +97,8 @@ struct PetState: Codable {
         normalize()
     }
 
+    /// Explains a need or rest gate, or returns nil when the action is available.
+    /// Reads the current state without advancing time or awarding care.
     func unavailableReason(for action: CareAction, companion: Companion) -> String? {
         if action == .wake { return isResting ? nil : "Already awake" }
         if isResting { return "Wake \(companion.name) gently first" }

@@ -127,7 +127,7 @@ struct CareView: View {
                 Text(model.companion.species + " · " + (model.petAgeDays == 0 ? "Your new friend" : "Day \(model.petAgeDays + 1) together"))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                 ZStack {
-                    if model.companion == .duck && (model.pet.isResting || model.activeCare == .rest) {
+                    if model.companion == .duck && model.activeCare != .wake && (model.pet.isResting || model.activeCare == .rest) {
                         PropSprite(prop: .nest, size: 66 * duckSceneScale)
                             .offset(y: 24 * duckSceneScale)
                     }

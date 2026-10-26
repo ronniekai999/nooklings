@@ -36,6 +36,7 @@ Click to chat, or press **⌃⌥Space** from any app. Hover to care. Drag to mak
 
 <a id="meet-byte"></a>
 <a id="meet-the-nooklings"></a>
+
 ## Meet the Nooklings
 
 <table>
@@ -76,6 +77,7 @@ Food and water replenish needs up to 100%; play uses energy. Hungry, thirsty, or
 The quick controls and dashboard run the same animations and award care once at the action’s payoff. Switching companions is paused during care or a streaming reply. The chat persona changes with your friend; the conversation and AI connection stay shared across the app.
 
 <a id="features"></a>
+
 ## ✨ What you get
 
 ### 🐾 A little routine with your companion

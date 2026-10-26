@@ -55,7 +55,9 @@ struct ByteView: View {
         return Color(red: c.0, green: c.1, blue: c.2)
     }
 
+    /// Wake appears immediately while the care reservation still preserves resting state.
     private var mood: ByteSprite.Mood {
+        if careScene == .wake { return .neutral }
         if model.pet.isResting || careScene == .rest { return .sleeping }
         if careScene == .meal || careScene == .snack { return carePhase.isMultiple(of: 2) ? .happy : .eating }
         if careScene == .water { return carePhase.isMultiple(of: 2) ? .neutral : .drinking }
@@ -154,7 +156,7 @@ struct ByteView: View {
                 .offset(y: 18)
                 .allowsHitTesting(false)
 
-            if model.companion == .duck && (model.pet.isResting || careScene == .rest) {
+            if model.companion == .duck && careScene != .wake && (model.pet.isResting || careScene == .rest) {
                 PropSprite(prop: .nest, size: 66)
                     .offset(y: 24)
                     .allowsHitTesting(false)
@@ -334,6 +336,7 @@ struct ByteView: View {
 
     // MARK: behaviour
 
+    /// Restarts the idle bob and glow, or leaves both still when Reduce Motion is enabled.
     private func startIdle() {
         bob = false; glowPulse = false
         guard !reduceMotion else { return }
@@ -672,6 +675,7 @@ struct ByteView: View {
         say(text)
     }
 
+    /// Shows a brief bubble outside chat; an older dismissal cannot hide a newer message.
     private func say(_ text: String) {
         guard !model.chatOpen else { return }
         quipID += 1
