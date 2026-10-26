@@ -4,9 +4,9 @@
 
 <h1>Nooklings</h1>
 
-**Little companions. A world of personality.**
+**Little friends. A cozier Mac.**
 
-Five lifelike friends below your Mac’s notch. Optional Claude or ChatGPT, one click away.
+Six lifelike virtual pets with animated care, their own daily routines, and optional Claude or ChatGPT chat.
 
 <br>
 
@@ -18,26 +18,71 @@ Five lifelike friends below your Mac’s notch. Optional Claude or ChatGPT, one 
 
 <br><br>
 
-[Get started](#get-started) · [Features](#features) · [Meet the Nooklings](#meet-the-nooklings) · [Settings](#settings) · [Privacy & cost](#privacy-and-cost) · [Troubleshooting](#troubleshooting) · [Development](#development)
+[Meet the Nooklings](#meet-the-nooklings) · [Features](#features) · [Get started](#get-started) · [Settings](#settings) · [Privacy & cost](#privacy-and-cost) · [Troubleshooting](#troubleshooting) · [Development](#development)
 
 </div>
 
 ---
 
-Nooklings is a native macOS companion app with five lifelike friends to choose from, each with their own food, hydration, play, and rest routines. They live just below the notch, react while thinking, and remember where you leave them. A compact Claude or ChatGPT panel handles everyday questions, images, and web research.
+Nooklings gives your Mac a little companion to care for. Meet **Byte** the T-Rex, **Ripple** the dolphin, **Biscuit** the dog, **Miso** the cat, **Bao** the panda, and **Puddle** the duckling. Each friend has lifelike expressions, favorite foods, playful activities, and a cozy way to rest. Their needs, age, and care history are saved separately.
+
+They live just below your Mac’s notch, or wherever you drag them. When you want help with a question, an image, or web research, open the optional Claude or ChatGPT panel. Nooklings also works on Macs without a notch.
 
 Click to chat, or press **⌃⌥Space** from any app. Hover to care. Drag to make yourself at home.
 
-**The pet works without an AI connection.** For replies, use an eligible ChatGPT plan through browser sign-in, or connect your own Anthropic API key. Credentials stay in macOS Keychain. Nooklings is built with SwiftUI and AppKit, with no third-party runtime dependencies.
+**Pet care works offline, without an AI account or credits.** For replies, use an eligible ChatGPT plan through browser sign-in, or connect your own Anthropic API key. Credentials stay in macOS Keychain. Nooklings is built with SwiftUI and AppKit, with no third-party runtime dependencies.
 
 > **Source preview:** Nooklings is currently built from source. Ordinary builds are unsigned; a [signing and notarization workflow](docs/DISTRIBUTION.md) is ready for Apple credentials. Native checks cover the new controls and recovery paths. Real sign-in, signed upgrades, and VoiceOver still need an installed-app pass. See the [review and validation notes](docs/CODE_REVIEW.md) for evidence.
 
+<a id="meet-byte"></a>
+<a id="meet-the-nooklings"></a>
+
+## Meet the Nooklings
+
+<table>
+<tr>
+<td align="center" width="33%"><img src="docs/assets/companions/trex.png" width="160" alt="Byte, a lifelike green T-Rex"><br><strong>Byte</strong><br>T-Rex<br><em>Small arms. Big heart.</em></td>
+<td align="center" width="33%"><img src="docs/assets/companions/dolphin.png" width="160" alt="Ripple, a silver bottlenose dolphin"><br><strong>Ripple</strong><br>Dolphin<br><em>A little wave of wonder.</em></td>
+<td align="center" width="33%"><img src="docs/assets/companions/dog.png" width="160" alt="Biscuit, a golden retriever"><br><strong>Biscuit</strong><br>Golden retriever<br><em>Your golden-hour best friend.</em></td>
+</tr>
+<tr>
+<td align="center" width="33%"><img src="docs/assets/companions/cat.png" width="160" alt="Miso, an orange tabby cat"><br><strong>Miso</strong><br>Tabby cat<br><em>Curiosity, with a side of mischief.</em></td>
+<td align="center" width="33%"><img src="docs/assets/companions/panda.png" width="160" alt="Bao, a giant panda"><br><strong>Bao</strong><br>Giant panda<br><em>Slow mornings. Happy tumbles.</em></td>
+<td align="center" width="33%"><img src="docs/assets/companions/duck.png" width="160" alt="Puddle, a fluffy yellow Pekin duckling with tiny wings and orange webbed feet"><br><strong>Puddle</strong><br>Pekin duckling<br><em>Tiny waddles. Big feelings.</em></td>
+</tr>
+</table>
+
+Choose a friend from **Care**, available on the hover bar or right-click menu. See the [companion guide](docs/COMPANIONS.md) for their care routines. Your current companion stays selected on upgrade, and your original `pet.json` stays intact. Each friend’s needs continue to advance with elapsed time when you return to them.
+
+| Companion | Food & treat | Hydration / refresh | Play & gentle activity | Rest |
+| --- | --- | --- | --- | --- |
+| **Byte · T-Rex** | Prime bites · turkey morsels | Watering hole | Stomp chase · scent trail | 5-minute nest nap |
+| **Ripple · dolphin** | Fish school · squid snack | Splash refresh for skin freshness; fish also restores moisture | Hoop dive · bubble chase | 4-minute quiet drift |
+| **Biscuit · dog** | Dinner bowl · crunchy biscuit | Refilled water bowl | Fetch · sniff safari | 5-minute cozy nap |
+| **Miso · cat** | Salmon supper · chicken nibbles | Fresh drinking fountain | Feather pounce · sunbeam chase | 3-minute catnap |
+| **Bao · panda** | Bamboo buffet · apple slices | Forest spring | Bamboo roll · leaf puzzle | 6-minute bamboo snooze |
+| **Puddle · duckling** | Duckling crumble · pea nibbles | Fresh-water bill dip & splash | Lily-pad paddle · duckweed hunt | 4-minute reed-nest snooze |
+
+Puddle brings happy waddles, little bill dips, quiet peeps, and a tucked-in sleeping pose. Duckweed hunts restore a little fullness as well as joy, and the cozy reed nest stays visible through the snooze.
+
+Food and water replenish needs up to 100%; play uses energy. Hungry, thirsty, or exhausted friends ask for care before energetic games. Rest recovers energy over time, including while the app is closed; **Wake gently** keeps only the energy already recovered. These are playful virtual-pet routines. Care works locally and never requires AI credits.
+
+<p align="center">
+<img src="docs/assets/care-byte-dark.png" width="320" alt="Byte’s care dashboard in dark mode, with needs, meals, games, and rest">
+<img src="docs/assets/care-puddle-light.png" width="320" alt="Puddle’s care dashboard in light mode, with all six companions, duckling crumble, bill dips, lily-pad paddling, and nest rest">
+</p>
+
+*Native macOS renders of the full care content. The app presents this inside a compact scrolling panel.*
+
+The quick controls and dashboard run the same animations and award care once at the action’s payoff. Switching companions is paused during care or a streaming reply. The chat persona changes with your friend; the conversation and AI connection stay shared across the app.
+
 <a id="features"></a>
+
 ## ✨ What you get
 
-### 🦖 A desktop companion with a personality
+### 🐾 A little routine with your companion
 
-- **Five lifelike companions** with neutral, happy, thinking, eating, drinking, and sleeping expressions. Byte’s existing tricks, smiles, wiggles, and greetings remain, with distinct care movements for each animal.
+- **Six lifelike companions** with neutral, happy, thinking, eating, drinking, and sleeping expressions. Each animal brings its own care movements, quiet sound cues, and friendly reactions.
 - **A modern care dashboard** with fullness, hydration (freshness for Ripple), energy, joy, suggested actions, and recent moments. Each companion keeps separate needs, age, care history, and rest progress.
 - **Species-specific care** with two foods, two play activities, water or splash refreshes, affection, and timed naps. Smooth props and quiet synthesized cues replace the pixel objects. Reduce Motion keeps care functional with static expressions.
 - **Optional check-ins** and adjustable puns, from off to lots.
@@ -104,7 +149,7 @@ cd nooklings
 swift run Nooklings
 ```
 
-Your companion appears near the top of your display. **Click to open chat, or hover and choose Care to meet all five.** Choose **ChatGPT · your plan** and **Continue with ChatGPT**, then approve Nooklings in your browser. Nooklings loads your account's available models after connecting. You can also use the pet first, or choose **Claude · API key**, paste your key, and choose **Save**.
+Your companion appears near the top of your display. **Click to open chat, or hover and choose Care to meet all six.** Choose **ChatGPT · your plan** and **Continue with ChatGPT**, then approve Nooklings in your browser. Nooklings loads your account's available models after connecting. You can also use the pet first, or choose **Claude · API key**, paste your key, and choose **Save**.
 
 ChatGPT requests use your authorized plan allowance or available credits. **Manage usage** opens ChatGPT settings, where you can review usage and set Nooklings’ limits. This uses the supported local-app integration, not a Codex login or access to existing ChatGPT conversations. Paid or remotely hosted distribution needs OpenAI approval; see [OpenAI's plan-usage guide](https://developers.openai.com/siwc/token-sharing-open-source).
 
@@ -140,41 +185,7 @@ These commands use **Bash**; run `bash` first if your terminal uses another shel
 
 </details>
 
-<a id="meet-byte"></a>
-<a id="meet-the-nooklings"></a>
-## Meet the Nooklings
-
-<table>
-<tr>
-<td align="center" width="20%"><img src="docs/assets/companions/trex.png" width="160" alt="Byte, a lifelike green T-Rex"><br><strong>Byte</strong><br>T-Rex<br><em>Small arms. Big heart.</em></td>
-<td align="center" width="20%"><img src="docs/assets/companions/dolphin.png" width="160" alt="Ripple, a silver bottlenose dolphin"><br><strong>Ripple</strong><br>Dolphin<br><em>A little wave of wonder.</em></td>
-<td align="center" width="20%"><img src="docs/assets/companions/dog.png" width="160" alt="Biscuit, a golden retriever"><br><strong>Biscuit</strong><br>Golden retriever<br><em>Your golden-hour best friend.</em></td>
-<td align="center" width="20%"><img src="docs/assets/companions/cat.png" width="160" alt="Miso, an orange tabby cat"><br><strong>Miso</strong><br>Tabby cat<br><em>Curiosity, with a side of mischief.</em></td>
-<td align="center" width="20%"><img src="docs/assets/companions/panda.png" width="160" alt="Bao, a giant panda"><br><strong>Bao</strong><br>Giant panda<br><em>Slow mornings. Happy tumbles.</em></td>
-</tr>
-</table>
-
-Choose a friend from **Care**, available on the hover bar or right-click menu. See the [companion guide](docs/COMPANIONS.md) for their care routines. Byte is selected on existing installations, and your original `pet.json` stays intact. Each friend’s needs continue to advance with elapsed time when you return to them.
-
-| Companion | Food & treat | Hydration / refresh | Play & gentle activity | Rest |
-| --- | --- | --- | --- | --- |
-| **Byte · T-Rex** | Prime bites · turkey morsels | Watering hole | Stomp chase · scent trail | 5-minute nest nap |
-| **Ripple · dolphin** | Fish school · squid snack | Splash refresh for skin freshness; fish also restores moisture | Hoop dive · bubble chase | 4-minute quiet drift |
-| **Biscuit · dog** | Dinner bowl · crunchy biscuit | Refilled water bowl | Fetch · sniff safari | 5-minute cozy nap |
-| **Miso · cat** | Salmon supper · chicken nibbles | Fresh drinking fountain | Feather pounce · sunbeam chase | 3-minute catnap |
-| **Bao · panda** | Bamboo buffet · apple slices | Forest spring | Bamboo roll · leaf puzzle | 6-minute bamboo snooze |
-
-Food and water replenish needs up to 100%; play uses energy. Hungry, thirsty, or exhausted friends ask for care before energetic games. Rest recovers energy over time, including while the app is closed; **Wake gently** keeps only the energy already recovered. These are playful virtual-pet routines. Care works locally and never requires AI credits.
-
-<p align="center">
-<img src="docs/assets/care-byte-dark.png" width="320" alt="Byte’s care dashboard in dark mode, with needs, meals, games, and rest">
-<img src="docs/assets/care-ripple-light.png" width="320" alt="Ripple’s care dashboard in light mode, with fish, splash refresh, and hoop dives">
-</p>
-
-*Native macOS renders of the full care content. The app presents this inside a compact scrolling panel.*
-
-The quick controls and dashboard run the same animations and award care once at the action’s payoff. Switching companions is paused during care or a streaming reply. The chat persona changes with your friend; the conversation and AI connection stay shared across the app.
-
+### 4. Spend a little time together
 
 | Action | What happens |
 | --- | --- |
@@ -194,7 +205,7 @@ A few things to try:
 - “Explain the error in this screenshot.” Paste an image, then ask.
 - “Find the official documentation for this API.” Enable web search for source links.
 - “Help me simplify this Swift function.” Paste code and copy the suggested result.
-- Bring Bao a bamboo buffet, help Ripple splash, or take Biscuit on a sniff safari.
+- Bring Bao a bamboo buffet, help Ripple splash, or take Puddle on a duckweed hunt.
 
 The companion window sits **below** the physical notch cutout. Dragging your companion lets you choose a different spot on your display.
 
@@ -245,7 +256,7 @@ Nooklings stores conversations, pet state, and attachments under `~/.config/byte
 ~/.config/byte/
 ├── history.json                 # Current conversation
 ├── pet.json                     # Byte’s original needs, age, rest, and care history
-├── pet-{animal}.json            # Separate dolphin, dog, cat, and panda state
+├── pet-{animal}.json            # Separate dolphin, dog, cat, panda, and duck state
 ├── archives/
 │   └── chat-<timestamp>-<UUID>.json
 ├── images/

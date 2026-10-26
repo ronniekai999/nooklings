@@ -266,6 +266,8 @@ final class ByteModel: ObservableObject {
         return token
     }
 
+    /// Settles the matching reservation once and persists a successfully awarded action.
+    /// Stale tokens cannot complete a newer routine or overwrite its feedback.
     func completeCare(_ token: UUID) {
         guard careToken == token, let action = activeCare else { return }
         let applied = pet.perform(action, companion: companion, at: now())
@@ -278,14 +280,22 @@ final class ByteModel: ObservableObject {
         }
     }
 
+    /// Releases the matching reservation without awarding care; stale tokens are ignored.
     func cancelCare(_ token: UUID) {
         guard careToken == token else { return }
         careToken = nil; activeCare = nil; careFeedback = "Ready when you are."
     }
 
+    /// Supplies species-specific feedback after an action has successfully awarded care.
+    /// Unavailable and canceled actions use their own feedback instead.
     private func reaction(to action: CareAction) -> String {
         switch action {
-        case .meal, .snack: return "\(companion.name) loved those \(action.title(for: companion).lowercased())."
+        case .meal, .snack:
+            if companion == .duck {
+                return action == .snack ? "Pea-sized snack. Duck-sized delight."
+                    : "Nibble, nibble… one very happy fluffball."
+            }
+            return "\(companion.name) loved those \(action.title(for: companion).lowercased())."
         case .water:
             switch companion {
             case .trex: return "A big drink for a little dinosaur."
@@ -293,9 +303,17 @@ final class ByteModel: ObservableObject {
             case .dog: return "Bowl empty. Tail still wagging."
             case .cat: return "Fresh running water. Miso approves."
             case .panda: return "Cool spring water. Back to taking it slow."
+            case .duck: return "Dip, sip, happy peep. Puddle’s bill is sparkling."
             }
-        case .play, .explore: return "\(action.title(for: companion)) complete. \(companion.name) is beaming."
-        case .rest: return "\(companion.name) is resting. Energy will recover over \(Int(companion.napMinutes)) minutes."
+        case .play, .explore:
+            if companion == .duck {
+                return action == .explore ? "A little duckweed treasure! Happy tummy, happy Puddle."
+                    : "One lily pad, two tiny paddles, a very proud peep."
+            }
+            return "\(action.title(for: companion)) complete. \(companion.name) is beaming."
+        case .rest:
+            if companion == .duck { return "Bill tucked, fluff settled. Puddle’s four-minute nest snooze has begun." }
+            return "\(companion.name) is resting. Energy will recover over \(Int(companion.napMinutes)) minutes."
         case .wake: return "Welcome back, \(companion.name)."
         case .affection:
             switch companion {
@@ -304,6 +322,7 @@ final class ByteModel: ObservableObject {
             case .dog: return "Biscuit’s tail says it all."
             case .cat: return "A slow blink and a very contented purr."
             case .panda: return "Bao leans into your gentle pat."
+            case .duck: return "Puddle nestles into your hand. The tiniest, happiest peep."
             }
         }
     }

@@ -85,7 +85,7 @@ Run on a Mac with real credentials before declaring the first signed release rea
 
 - Download the final ZIP through a browser, expand it, and install in Applications.
   Launch through Finder with normal quarantine/Gatekeeper checks in place.
-- Verify all five companions and images load away from the source/build directory.
+- Verify all six companions and images load away from the source/build directory.
 - Sign into both providers, quit, install a later build signed by the same team,
   and verify accounts, pet histories, archives, settings, and pins survive.
 - Exercise Keychain allow/deny/retry, refresh-token rotation, and sign-out. Verify

@@ -12,7 +12,7 @@ try FileManager.default.copyItem(at: source, to: relocated)
 guard let app = Bundle(url: relocated), app.bundleIdentifier == "com.ronnie.byte",
       let resourceURL = app.resourceURL?.appendingPathComponent("Nooklings_Byte.bundle"),
       let resources = Bundle(url: resourceURL) else { fatalError("Invalid app identity or resource bundle") }
-for animal in ["trex", "dolphin", "dog", "cat", "panda"] {
+for animal in ["trex", "dolphin", "dog", "cat", "panda", "duck"] {
     guard let url = resources.url(forResource: animal, withExtension: "png", subdirectory: "Companions"),
           let source = CGImageSourceCreateWithURL(url as CFURL, nil),
           let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
@@ -20,4 +20,4 @@ for animal in ["trex", "dolphin", "dog", "cat", "panda"] {
         fatalError("Relocated app cannot load the \(animal) expression atlas")
     }
 }
-print("Relocated app identity and all five expression atlases verified.")
+print("Relocated app identity and all six expression atlases verified.")

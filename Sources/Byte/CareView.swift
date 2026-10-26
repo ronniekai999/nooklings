@@ -12,6 +12,14 @@ struct CareView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
+    private let duckSceneScale: CGFloat = 1.32 / 0.90
+    /// Uses the active duck routine, or its ongoing nap, to place the preview.
+    /// A fixed beat preserves the scene under Reduce Motion; other pets return nil.
+    private func duckPose(reducingMotion: Bool) -> DuckCarePose? {
+        guard model.companion == .duck,
+              let action = model.activeCare ?? (model.pet.isResting ? .rest : nil) else { return nil }
+        return DuckCarePose.frame(for: action, phase: reducingMotion ? 1 : phase)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -73,11 +81,11 @@ struct CareView: View {
 
     private var companions: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 4) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
                 ForEach(Companion.allCases) { companion in
                     Button { _ = model.selectCompanion(companion) } label: {
                         VStack(spacing: 3) {
-                            ByteSprite(scale: 0.36, companion: companion)
+                            ByteSprite(scale: 0.44, companion: companion)
                                 .accessibilityHidden(true)
                                 .frame(height: 43)
                             Text(companion.name).font(.system(size: 10, weight: .semibold))
@@ -98,8 +106,15 @@ struct CareView: View {
         }
     }
 
-    private var habitat: some View {
-        ZStack(alignment: .topLeading) {
+    var habitat: some View {
+        habitat(reducingMotion: reduceMotion)
+    }
+
+    /// Renders the selected companion's habitat, expression, and active care object.
+    /// The explicit motion policy also lets native previews exercise the read-only setting.
+    func habitat(reducingMotion reduceMotion: Bool) -> some View {
+        let duckPose = self.duckPose(reducingMotion: reduceMotion)
+        return ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 20)
                 .fill(LinearGradient(colors: [accent.opacity(0.23), accent.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing))
             VStack(alignment: .leading, spacing: 4) {
@@ -112,12 +127,22 @@ struct CareView: View {
                 Text(model.companion.species + " · " + (model.petAgeDays == 0 ? "Your new friend" : "Day \(model.petAgeDays + 1) together"))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                 ZStack {
+                    if model.companion == .duck && model.activeCare != .wake && (model.pet.isResting || model.activeCare == .rest) {
+                        PropSprite(prop: .nest, size: 66 * duckSceneScale)
+                            .offset(y: 24 * duckSceneScale)
+                    }
                     ByteSprite(scale: 1.32, mood: mood, companion: model.companion)
-                        .scaleEffect(!reduceMotion && model.activeCare == .play && !phase.isMultiple(of: 2) ? 1.03 : 1)
+                        .scaleEffect(duckPose?.scale ?? (!reduceMotion && model.activeCare == .play && !phase.isMultiple(of: 2) ? 1.03 : 1))
+                        .rotationEffect(.degrees(duckPose?.tilt ?? 0))
+                        .offset(x: (duckPose?.x ?? 0) * duckSceneScale,
+                                y: (duckPose?.y ?? 0) * duckSceneScale)
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
-                    if let action = model.activeCare {
-                        PropSprite(prop: .object(for: action, companion: model.companion), size: 34)
-                            .offset(x: -58, y: !reduceMotion && phase.isMultiple(of: 2) ? 45 : 30)
+                    if let action = model.activeCare, !(model.companion == .duck && action == .rest) {
+                        PropSprite(prop: .object(for: action, companion: model.companion), size: duckPose == nil ? 34 : 30 * duckSceneScale)
+                            .scaleEffect(duckPose?.propScale ?? 1)
+                            .rotationEffect(.degrees(duckPose?.propTilt ?? 0))
+                            .offset(x: duckPose.map { $0.propX * duckSceneScale } ?? -58,
+                                    y: duckPose.map { $0.propY * duckSceneScale } ?? (!reduceMotion && phase.isMultiple(of: 2) ? 45 : 30))
                             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
                     }
                 }
@@ -126,7 +151,7 @@ struct CareView: View {
                 HStack {
                     Text(model.companion.personality).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
-                    Text("\(model.pet.careCount) care moments").lineLimit(1)
+                    Text(model.pet.careCount == 1 ? "1 care moment" : "\(model.pet.careCount) care moments").lineLimit(1)
                 }.font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
             }.padding(14)
         }
@@ -171,6 +196,7 @@ struct CareView: View {
         }
     }
 
+    /// Presents a routine with its prop, expected effects, and any reason it is unavailable.
     private func actionCard(_ action: CareAction) -> some View {
         let reason = model.pet.unavailableReason(for: action, companion: model.companion)
         return Button { onCare(action) } label: {

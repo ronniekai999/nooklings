@@ -36,6 +36,7 @@ enum CompanionArtwork {
         return .module
     }
 
+    /// Decodes each atlas once and caches isolated expressions on a shared baseline.
     private static let frames: [Companion: [CGImage]] = {
         var result: [Companion: [CGImage]] = [:]
         for companion in Companion.allCases {
@@ -45,6 +46,19 @@ enum CompanionArtwork {
                   let atlas = CGImageSourceCreateImageAtIndex(source, 0, nil) else { continue }
             let w = atlas.width / 3, h = atlas.height / 2
             result[companion] = ByteSprite.Mood.allCases.compactMap { mood in
+                if companion == .duck {
+                    // Keep Puddle's crown tuft and webbed feet. Isolate the cell
+                    // before moving the lower poses down to the standing baseline.
+                    let row = mood.rawValue / 3
+                    guard let cell = atlas.cropping(to: CGRect(x: (mood.rawValue % 3) * w,
+                                                              y: row * h, width: w, height: h)) else { return nil }
+                    guard row == 1 else { return cell }
+                    guard let canvas = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
+                                                 bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+                    canvas.draw(cell, in: CGRect(x: 0, y: -44, width: w, height: h))
+                    return canvas.makeImage()
+                }
                 // Discard the empty top/bottom gutter, keeping all poses on the same canvas.
                 // The second row's generated poses sit slightly higher. Match the
                 // standing baseline so expressions don't jump during a bite or sip.
@@ -55,6 +69,7 @@ enum CompanionArtwork {
                 case .dog: lowerRowInset = -7
                 case .cat: lowerRowInset = 18
                 case .panda: lowerRowInset = 10
+                case .duck: lowerRowInset = 0 // Uses the full-cell path above.
                 }
                 let row = mood.rawValue / 3
                 let rect = CGRect(x: (mood.rawValue % 3) * w,
@@ -66,6 +81,7 @@ enum CompanionArtwork {
         return result
     }()
 
+    /// Returns a cached expression, or nil if the companion's full atlas could not load.
     static func frame(_ companion: Companion, mood: ByteSprite.Mood) -> CGImage? {
         guard let images = frames[companion], images.count == ByteSprite.Mood.allCases.count else { return nil }
         return images[mood.rawValue]

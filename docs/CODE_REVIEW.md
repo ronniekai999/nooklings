@@ -1,5 +1,29 @@
 # Nooklings review and validation
 
+## Puddle companion — October 26, 2026
+
+[PR #6](https://github.com/ronniekai999/nooklings/pull/6) adds Puddle, a lifelike
+Pekin duckling, as the sixth Nookling. Six transparent expressions preserve the
+crown fluff and webbed feet; the lower poses align to the standing baseline without
+sampling neighboring cells. The companion picker now has two rows of three.
+
+Puddle has duckling crumble, pea nibbles, bill dips, lily-pad paddling, duckweed
+foraging, cheek nuzzles, soft peeps, and a timed reed-nest snooze. The notch and
+care preview share the duck's movement poses. Foraging restores a little fullness;
+rest continues offline. A separate `pet-duck.json` preserves the five existing
+companions and the original Byte identity.
+
+The [native macOS checks](https://github.com/ronniekai999/nooklings/pull/6/checks)
+pass **94 regression tests**, universal Intel/Apple silicon release compilation,
+and verification of all six artwork atlases from a relocated bundle. The README
+and companion guide include portraits and care scenes exported by the app.
+Added coverage exercises Puddle's complete
+routine, bounded foraging gains, need gates, canceled and duplicate care,
+independent persistence, offline rest, and all eight care previews with normal
+and reduced motion. Existing expression and dashboard checks include all six
+companions. Static renders do not verify live animation timing or audio; those
+remain part of the [installed-app pass](ACCESSIBILITY.md).
+
 ## Roadmap implementation — October 18, 2026
 
 The companion review's four P2 findings are fixed:
