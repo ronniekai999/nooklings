@@ -123,6 +123,7 @@ final class CareModelTests: XCTestCase {
         XCTAssertNil(GlobalShortcut(defaults: f.defaults).configuration)
     }
 
+    /// Exports the actual light/dark dashboards and portraits used in the companion guide.
     @MainActor
     func testCareDashboardRendersForEveryCompanion() throws {
         let f = try CareFixture(); defer { f.clean() }
@@ -201,59 +202,64 @@ final class CareModelTests: XCTestCase {
         }
     }
 
-    /// Renders every duck care context and verifies that only normal motion changes beats.
-    /// A settled nap and the phase-independent wake/nuzzle poses also remain renderable.
+    /// Renders every baby's care context and checks motion without changing the expression.
+    /// Care props and poses advance normally but stay fixed under Reduce Motion.
     /// When requested, exports the native images for documentation and visual inspection.
     @MainActor
-    func testPuddleCareScenesRenderWithAndWithoutReducedMotion() throws {
+    func testCareScenesRenderForEveryCompanionWithBothMotionPolicies() throws {
         let f = try CareFixture(); defer { f.clean() }
         let model = f.model()
-        XCTAssertTrue(model.selectCompanion(.duck))
-        let scenes: [(CareAction, ByteSprite.Mood)] = [(.meal, .eating), (.snack, .eating), (.water, .drinking),
-            (.play, .happy), (.explore, .eating), (.rest, .sleeping), (.wake, .neutral), (.affection, .happy)]
         let phaseSensitiveActions: [CareAction] = [.meal, .snack, .water, .play, .explore]
-        for (action, mood) in scenes {
-            model.pet = PetState(now: f.start)
-            if action == .wake { model.pet.restingUntil = f.start.addingTimeInterval(240) }
-            let token = try XCTUnwrap(model.beginCare(action))
-            if action == .rest {
-                model.completeCare(token)
-                XCTAssertTrue(model.pet.isResting, "The nest must also render after the care animation settles")
-            }
-            for reduced in [false, true] {
-                var frames: [Data] = []
-                for phase in 0...1 {
-                    let scene = CareView(model: model, accent: Color(red: 0.88, green: 0.63, blue: 0.22),
-                                         mood: mood, phase: phase, isBusy: true, onCare: { _ in })
-                    let view = VStack(spacing: 8) {
-                        Text(action.title(for: .duck)).font(.headline)
-                        scene.habitat(reducingMotion: reduced)
+        for companion in Companion.allCases {
+            XCTAssertTrue(model.selectCompanion(companion))
+            let rgb = companion.tint
+            let scenes: [(CareAction, ByteSprite.Mood)] = [(.meal, .eating), (.snack, .eating), (.water, .drinking),
+                (.play, .happy), (.explore, companion == .duck ? .eating : .happy),
+                (.rest, .sleeping), (.wake, .neutral), (.affection, .happy)]
+            for (action, mood) in scenes {
+                model.pet = PetState(now: f.start)
+                if action == .wake { model.pet.restingUntil = f.start.addingTimeInterval(240) }
+                let token = try XCTUnwrap(model.beginCare(action))
+                if action == .rest {
+                    model.completeCare(token)
+                    XCTAssertTrue(model.pet.isResting, "Rest must also render after the care animation settles")
+                }
+                for reduced in [false, true] {
+                    var frames: [Data] = []
+                    for phase in 0...1 {
+                        let scene = CareView(model: model, accent: Color(red: rgb.0, green: rgb.1, blue: rgb.2),
+                                             mood: mood, phase: phase, isBusy: true, onCare: { _ in })
+                        let view = VStack(spacing: 8) {
+                            Text(action.title(for: companion)).font(.headline)
+                            scene.habitat(reducingMotion: reduced)
+                        }
+                        .padding(16).frame(width: 370).background(Color(white: 0.97))
+                        .environment(\.colorScheme, .light)
+                        let renderer = ImageRenderer(content: view)
+                        renderer.scale = 2
+                        let image = try XCTUnwrap(renderer.cgImage, "\(companion.name) / \(action.rawValue)")
+                        XCTAssertEqual(image.width, 740)
+                        let bitmap = NSBitmapImageRep(cgImage: image)
+                        let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                        XCTAssertGreaterThan(data.count, 1000)
+                        frames.append(data)
+                        if phase == 1, let directory = ProcessInfo.processInfo.environment["NOOKLINGS_SNAPSHOT_DIRECTORY"] {
+                            let url = URL(fileURLWithPath: directory)
+                                .appendingPathComponent(reduced ? "care-reduced-motion" : "care-normal", isDirectory: true)
+                            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                            try data.write(to: url.appendingPathComponent("\(companion.rawValue)-\(action.rawValue)\(reduced ? "-reduced-motion" : "").png"))
+                        }
                     }
-                    .padding(16).frame(width: 370).background(Color(white: 0.97))
-                    .environment(\.colorScheme, .light)
-                    let renderer = ImageRenderer(content: view)
-                    renderer.scale = 2
-                    let image = try XCTUnwrap(renderer.cgImage, action.rawValue)
-                    XCTAssertEqual(image.width, 740)
-                    let bitmap = NSBitmapImageRep(cgImage: image)
-                    let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
-                    XCTAssertGreaterThan(data.count, 1000)
-                    frames.append(data)
-                    if phase == 1, let directory = ProcessInfo.processInfo.environment["NOOKLINGS_SNAPSHOT_DIRECTORY"] {
-                        let url = URL(fileURLWithPath: directory)
-                        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-                        try data.write(to: url.appendingPathComponent("duck-\(action.rawValue)\(reduced ? "-reduced-motion" : "").png"))
+                    if phaseSensitiveActions.contains(action) {
+                        if reduced {
+                            XCTAssertEqual(frames[0], frames[1], "\(companion.name) / \(action.rawValue) must hold still with Reduce Motion")
+                        } else {
+                            XCTAssertNotEqual(frames[0], frames[1], "\(companion.name) / \(action.rawValue) must change between beats")
+                        }
                     }
                 }
-                if phaseSensitiveActions.contains(action) {
-                    if reduced {
-                        XCTAssertEqual(frames[0], frames[1], "\(action.rawValue) must hold a fixed pose with Reduce Motion")
-                    } else {
-                        XCTAssertNotEqual(frames[0], frames[1], "\(action.rawValue) must change pose between animation beats")
-                    }
-                }
+                model.cancelCare(token)
             }
-            model.cancelCare(token)
         }
     }
 

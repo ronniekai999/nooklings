@@ -1,20 +1,21 @@
 import Foundation
 
 enum Quips {
+    /// Short, local hatchling lines for Niblet's optional check-ins.
     static let lines = [
         "Rawr! (That's hello in dino.)",
         "Need a hand? Mine are tiny, but I'm all in.",
-        "Thinking… stomp… stomp… stomp…",
+        "Thinking… tiny stomp… tiny stomp…",
         "Stomping through your context window.",
         "Digging up the answer — I'm good at fossils.",
-        "Top of the notch, top of the food chain.",
+        "Still growing into these tiny feet.",
         "Two tiny arms, one big brain.",
-        "Don't worry, I won't byte. Much.",
+        "Just a nibble. I promise.",
         "Small arms. Huge enthusiasm.",
         "Stuck? Let's dig in together.",
         "Stomp. That was a thought.",
         "Keeping your notch from going extinct.",
-        "Prehistoric, but I keep up just fine.",
+        "Newly hatched. Extremely curious.",
         "T-rex-cellent to see you.",
         "Let's make today rawr-some."
     ]

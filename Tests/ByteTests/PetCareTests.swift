@@ -73,7 +73,7 @@ final class PetCareTests: XCTestCase {
         panda.perform(.meal, companion: .panda, at: start)
         XCTAssertEqual(dino.hunger, 68)
         XCTAssertEqual(dolphin.hunger, 62)
-        XCTAssertEqual(dolphin.thirst, 48, "Fish contributes to Ripple's moisture")
+        XCTAssertEqual(dolphin.thirst, 48, "Fish contributes to the dolphin calf's moisture")
         XCTAssertEqual(panda.hunger, 58)
         dino.perform(.play, companion: .trex, at: start)
         panda.perform(.play, companion: .panda, at: start)

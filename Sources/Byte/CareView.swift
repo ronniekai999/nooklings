@@ -12,7 +12,7 @@ struct CareView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
-    private let duckSceneScale: CGFloat = 1.32 / 0.90
+    private let sceneScale: CGFloat = 1.32 / 0.90
     /// Uses the active duck routine, or its ongoing nap, to place the preview.
     /// A fixed beat preserves the scene under Reduce Motion; other pets return nil.
     private func duckPose(reducingMotion: Bool) -> DuckCarePose? {
@@ -128,21 +128,23 @@ struct CareView: View {
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                 ZStack {
                     if model.companion == .duck && model.activeCare != .wake && (model.pet.isResting || model.activeCare == .rest) {
-                        PropSprite(prop: .nest, size: 66 * duckSceneScale)
-                            .offset(y: 24 * duckSceneScale)
+                        PropSprite(prop: .nest, size: 66 * sceneScale)
+                            .offset(y: 24 * sceneScale)
                     }
                     ByteSprite(scale: 1.32, mood: mood, companion: model.companion)
                         .scaleEffect(duckPose?.scale ?? (!reduceMotion && model.activeCare == .play && !phase.isMultiple(of: 2) ? 1.03 : 1))
                         .rotationEffect(.degrees(duckPose?.tilt ?? 0))
-                        .offset(x: (duckPose?.x ?? 0) * duckSceneScale,
-                                y: (duckPose?.y ?? 0) * duckSceneScale)
+                        .offset(x: (duckPose?.x ?? 0) * sceneScale,
+                                y: (duckPose?.y ?? 0) * sceneScale)
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
                     if let action = model.activeCare, !(model.companion == .duck && action == .rest) {
-                        PropSprite(prop: .object(for: action, companion: model.companion), size: duckPose == nil ? 34 : 30 * duckSceneScale)
+                        let point = CarePropPlacement.point(for: action, companion: model.companion)
+                        let bob: CGFloat = !reduceMotion && phase.isMultiple(of: 2) ? 8 : 0
+                        PropSprite(prop: .object(for: action, companion: model.companion), size: duckPose == nil ? 34 : 30 * sceneScale)
                             .scaleEffect(duckPose?.propScale ?? 1)
                             .rotationEffect(.degrees(duckPose?.propTilt ?? 0))
-                            .offset(x: duckPose.map { $0.propX * duckSceneScale } ?? -58,
-                                    y: duckPose.map { $0.propY * duckSceneScale } ?? (!reduceMotion && phase.isMultiple(of: 2) ? 45 : 30))
+                            .offset(x: duckPose.map { $0.propX * sceneScale } ?? point.map { $0.x * sceneScale } ?? -58,
+                                    y: duckPose.map { $0.propY * sceneScale } ?? point.map { $0.y * sceneScale + bob } ?? (!reduceMotion && phase.isMultiple(of: 2) ? 45 : 30))
                             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
                     }
                 }

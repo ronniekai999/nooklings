@@ -125,7 +125,7 @@ struct PetState: Codable {
         switch action {
         case .meal:
             hunger += companion.mealGain; happiness += 6
-            if companion == .dolphin { thirst += 8 } // Ripple also gets moisture from fish.
+            if companion == .dolphin { thirst += 8 } // Dolphin calves also get moisture from fish.
         case .snack: hunger += companion.snackGain; happiness += 8
         case .water: thirst += companion.waterGain; happiness += companion.waterJoy
         case .play: energy -= companion.playCost; thirst -= companion.playWaterCost; happiness += companion.playJoy

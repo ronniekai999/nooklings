@@ -518,18 +518,22 @@ struct ByteView: View {
         propOpacity = 1; propScale = 1; propRotation = 0
         propX = -52; propY = 23
         let companion = model.companion
+        let propPoint = CarePropPlacement.point(for: action, companion: companion)
         careTask = Task { @MainActor in
             defer { resetCareScene() }
             do {
                 if reduceMotion {
                     // A static expression and brief feedback still complete every action.
                     carePhase = 1
+                    if let point = propPoint { propX = point.x; propY = point.y }
                     if companion == .duck { applyDuckPose(action, phase: 1) }
                     try await pause(0.25)
                 } else {
                     switch action {
                     case .meal, .snack:
-                        withAnimation(.easeOut(duration: 0.4)) { propX = -35; propY = companion == .trex || companion == .dolphin ? -6 : 26 }
+                        withAnimation(.easeOut(duration: 0.4)) {
+                            propX = propPoint?.x ?? -35; propY = propPoint?.y ?? 26
+                        }
                         try await pause(0.4)
                         for bite in 1...4 {
                             carePhase = bite
@@ -545,8 +549,8 @@ struct ByteView: View {
                         }
                         withAnimation(.easeOut(duration: 0.2)) { propOpacity = 0; breachOffset = 0 }
                     case .water:
-                        propX = companion == .dolphin ? 0 : -35
-                        propY = companion == .dolphin ? 8 : 33
+                        propX = propPoint?.x ?? -35
+                        propY = propPoint?.y ?? 33
                         for sip in 1...4 {
                             carePhase = sip
                             withAnimation(.easeInOut(duration: 0.25)) {

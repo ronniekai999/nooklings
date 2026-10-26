@@ -5,46 +5,50 @@ enum Companion: String, Codable, CaseIterable, Identifiable {
     case trex, dolphin, dog, cat, panda, duck
     var id: String { rawValue }
 
+    /// Baby display names may change without renaming the stable save identifiers.
     var name: String {
         switch self {
-        case .trex: return "Byte"
-        case .dolphin: return "Ripple"
-        case .dog: return "Biscuit"
-        case .cat: return "Miso"
-        case .panda: return "Bao"
+        case .trex: return "Niblet"
+        case .dolphin: return "Bubbles"
+        case .dog: return "Waffles"
+        case .cat: return "Mochi"
+        case .panda: return "Pebble"
         case .duck: return "Puddle"
         }
     }
 
+    /// The baby's species and life stage, shared by the care header and chat persona.
     var species: String {
         switch self {
-        case .trex: return "T-Rex"
-        case .dolphin: return "Dolphin"
-        case .dog: return "Golden retriever"
-        case .cat: return "Tabby cat"
-        case .panda: return "Giant panda"
+        case .trex: return "T-Rex hatchling"
+        case .dolphin: return "Bottlenose dolphin calf"
+        case .dog: return "Golden retriever puppy"
+        case .cat: return "Tabby kitten"
+        case .panda: return "Giant panda cub"
         case .duck: return "Pekin duckling"
         }
     }
 
+    /// A short introduction used in the habitat and the selected companion's chat prompt.
     var personality: String {
         switch self {
-        case .trex: return "Small arms. Big heart."
-        case .dolphin: return "A little wave of wonder."
-        case .dog: return "Your golden-hour best friend."
-        case .cat: return "Curiosity, with a side of mischief."
-        case .panda: return "Slow mornings. Happy tumbles."
+        case .trex: return "Tiny teeth. Giant cuddles."
+        case .dolphin: return "Little flippers. Big wonder."
+        case .dog: return "Little paws. Whole-heart wags."
+        case .cat: return "Pocket-sized purrs."
+        case .panda: return "A little fluff. A lot of hugs."
         case .duck: return "Tiny waddles. Big feelings."
         }
     }
 
+    /// Supplies an optional check-in in the baby's own voice without using the network.
     var greeting: String {
         switch self {
         case .trex: return Quips.random()
-        case .dolphin: return "Making a little splash in your day."
-        case .dog: return "You’re here! That’s my favorite part."
-        case .cat: return "I saved you a spot in my sunbeam."
-        case .panda: return "One thing at a time. Then a bamboo break."
+        case .dolphin: return "I made the tiniest splash just for you."
+        case .dog: return "My paws are little. My happy dance is not."
+        case .cat: return "One tiny purr, coming right up."
+        case .panda: return "I brought a little bamboo and a very big hug."
         case .duck: return "Peep! I saved the nicest puddle for you."
         }
     }
@@ -61,13 +65,14 @@ enum Companion: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Names the species' main meal; its nutrition continues to use the existing care tuning.
     var meal: String {
         switch self {
-        case .trex: return "Prime bites"
-        case .dolphin: return "Fish school"
-        case .dog: return "Dinner bowl"
-        case .cat: return "Salmon supper"
-        case .panda: return "Bamboo buffet"
+        case .trex: return "Hatchling bites"
+        case .dolphin: return "Little fish bites"
+        case .dog: return "Puppy supper"
+        case .cat: return "Kitten salmon"
+        case .panda: return "Tender bamboo"
         case .duck: return "Duckling crumble"
         }
     }
@@ -94,9 +99,10 @@ enum Companion: String, Codable, CaseIterable, Identifiable {
         case .duck: return "Bill dip & splash"
         }
     }
+    /// Explains whether the refresh is drinking water, skin care, or a bill rinse.
     var hydrationHint: String {
         switch self {
-        case .dolphin: return "A refreshing splash for Ripple’s skin."
+        case .dolphin: return "A refreshing splash keeps \(name) feeling fresh."
         case .duck: return "Clean fresh water for little sips and a happy bill rinse."
         default: return "Fresh water and a quiet moment."
         }

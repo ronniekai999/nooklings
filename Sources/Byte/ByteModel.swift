@@ -295,13 +295,13 @@ final class ByteModel: ObservableObject {
                 return action == .snack ? "Pea-sized snack. Duck-sized delight."
                     : "Nibble, nibble… one very happy fluffball."
             }
-            return "\(companion.name) loved those \(action.title(for: companion).lowercased())."
+            return "\(companion.name) loved the \(action.title(for: companion).lowercased())."
         case .water:
             switch companion {
             case .trex: return "A big drink for a little dinosaur."
             case .dolphin: return "Fresh splash, happy flippers."
             case .dog: return "Bowl empty. Tail still wagging."
-            case .cat: return "Fresh running water. Miso approves."
+            case .cat: return "Fresh running water. \(companion.name) approves."
             case .panda: return "Cool spring water. Back to taking it slow."
             case .duck: return "Dip, sip, happy peep. Puddle’s bill is sparkling."
             }
@@ -318,10 +318,10 @@ final class ByteModel: ObservableObject {
         case .affection:
             switch companion {
             case .trex: return "Tiny arms, enormous appreciation."
-            case .dolphin: return "Ripple answers with a happy little whistle."
-            case .dog: return "Biscuit’s tail says it all."
+            case .dolphin: return "\(companion.name) answers with a happy little whistle."
+            case .dog: return "\(companion.name) has the happiest little tail."
             case .cat: return "A slow blink and a very contented purr."
-            case .panda: return "Bao leans into your gentle pat."
+            case .panda: return "\(companion.name) leans into your gentle pat."
             case .duck: return "Puddle nestles into your hand. The tiniest, happiest peep."
             }
         }

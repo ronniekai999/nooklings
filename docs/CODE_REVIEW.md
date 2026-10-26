@@ -1,5 +1,29 @@
 # Nooklings review and validation
 
+## Baby companion makeover — October 26, 2026
+
+The five original companions now have lifelike baby artwork and new display names:
+Niblet the T-Rex hatchling, Bubbles the dolphin calf, Waffles the golden retriever
+puppy, Mochi the tabby kitten, and Pebble the panda cub. Each has six expressions,
+including eating, refreshing, and sleeping. Puddle retains the same duckling artwork.
+
+The stable species identifiers, save filenames, preference keys, and app identity
+remain in place. Existing selection, care history, needs, and offline rest continue
+with the new names. Care tuning and action reservation behavior are unchanged.
+The picker, care feedback, check-ins, chat persona, README, and companion guide use
+the baby identities.
+
+Food and refresh props share species-specific mouth anchors across the notch and
+the larger habitat. Baby expression cells are isolated before their lower poses
+are aligned with the standing baseline, preserving ears, tails, feet, and fins.
+
+Native care-render coverage now exercises all eight actions for all six companions
+under both motion policies. It compares animation phases for meal, snack, refresh,
+play, and exploration: normal motion changes the render, while Reduce Motion holds
+it still. The workflow exports these scenes alongside all light/dark dashboards and
+portraits for visual inspection. Live timing, audio, and VoiceOver remain part of
+the [installed-app pass](ACCESSIBILITY.md).
+
 ## Puddle companion — October 26, 2026
 
 [PR #6](https://github.com/ronniekai999/nooklings/pull/6) adds Puddle, a lifelike
