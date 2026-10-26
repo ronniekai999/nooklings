@@ -211,6 +211,10 @@ final class CareModelTests: XCTestCase {
             model.pet = PetState(now: f.start)
             if action == .wake { model.pet.restingUntil = f.start.addingTimeInterval(240) }
             let token = try XCTUnwrap(model.beginCare(action))
+            if action == .rest {
+                model.completeCare(token)
+                XCTAssertTrue(model.pet.isResting, "The nest must also render after the care animation settles")
+            }
             for reduced in [false, true] {
                 let scene = CareView(model: model, accent: Color(red: 0.88, green: 0.63, blue: 0.22),
                                      mood: mood, phase: 1, isBusy: true, onCare: { _ in })

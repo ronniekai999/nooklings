@@ -16,19 +16,19 @@ struct DuckCarePose {
         let dip = !phase.isMultiple(of: 2)
         switch action {
         case .meal, .snack:
-            return Self(x: -3, y: dip ? 3 : 0, tilt: dip ? -5 : 1,
-                        propX: -23, propY: 29, propScale: max(0.25, 1 - CGFloat(phase) * 0.16))
+            return Self(x: -3, y: dip ? -5 : -8, tilt: dip ? -5 : 1,
+                        propX: -27, propY: 33, propScale: max(0.25, 1 - CGFloat(phase) * 0.16))
         case .water:
-            return Self(x: -3, y: dip ? 4 : -1, tilt: dip ? -6 : 2,
-                        propX: -24, propY: 32, propScale: dip ? 1.18 : 1)
+            return Self(x: -3, y: dip ? -4 : -9, tilt: dip ? -6 : 2,
+                        propX: -29, propY: 41, propScale: dip ? 1.18 : 1)
         case .play:
             return Self(x: dip ? -10 : 10, y: dip ? -3 : 0, tilt: dip ? -8 : 8,
                         propX: dip ? -34 : 23, propY: 30, propTilt: dip ? -12 : 12)
         case .explore:
-            return Self(x: dip ? -8 : 3, y: dip ? 3 : 0, tilt: dip ? -7 : 3,
-                        propX: -25, propY: 30, propScale: dip ? 0.85 : 1)
+            return Self(x: dip ? -8 : 3, y: dip ? -5 : -8, tilt: dip ? -7 : 3,
+                        propX: -30, propY: 33, propScale: dip ? 0.85 : 1)
         case .rest:
-            return Self(y: 5, scale: 0.96, propY: 32, propScale: 2.2)
+            return Self(y: -3, scale: 0.96, propY: 24, propScale: 2.2)
         case .wake:
             return Self(y: -4, tilt: -3, propX: 36, propY: -25, propScale: 0.75)
         case .affection:

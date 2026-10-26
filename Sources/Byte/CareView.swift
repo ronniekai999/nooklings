@@ -16,7 +16,7 @@ struct CareView: View {
     private func duckPose(reducingMotion: Bool) -> DuckCarePose? {
         guard model.companion == .duck,
               let action = model.activeCare ?? (model.pet.isResting ? .rest : nil) else { return nil }
-        return DuckCarePose.frame(for: action, phase: reducingMotion ? 0 : phase)
+        return DuckCarePose.frame(for: action, phase: reducingMotion ? 1 : phase)
     }
 
     var body: some View {
@@ -126,13 +126,13 @@ struct CareView: View {
                 ZStack {
                     if model.companion == .duck && (model.pet.isResting || model.activeCare == .rest) {
                         PropSprite(prop: .nest, size: 66 * duckSceneScale)
-                            .offset(y: 32 * duckSceneScale)
+                            .offset(y: 24 * duckSceneScale)
                     }
                     ByteSprite(scale: 1.32, mood: mood, companion: model.companion)
                         .scaleEffect(duckPose?.scale ?? (!reduceMotion && model.activeCare == .play && !phase.isMultiple(of: 2) ? 1.03 : 1))
-                        .rotationEffect(.degrees(reduceMotion ? 0 : duckPose?.tilt ?? 0))
-                        .offset(x: reduceMotion ? 0 : (duckPose?.x ?? 0) * duckSceneScale,
-                                y: reduceMotion ? 0 : (duckPose?.y ?? 0) * duckSceneScale)
+                        .rotationEffect(.degrees(duckPose?.tilt ?? 0))
+                        .offset(x: (duckPose?.x ?? 0) * duckSceneScale,
+                                y: (duckPose?.y ?? 0) * duckSceneScale)
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
                     if let action = model.activeCare, !(model.companion == .duck && action == .rest) {
                         PropSprite(prop: .object(for: action, companion: model.companion), size: duckPose == nil ? 34 : 30 * duckSceneScale)

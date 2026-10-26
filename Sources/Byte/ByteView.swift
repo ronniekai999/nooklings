@@ -156,7 +156,7 @@ struct ByteView: View {
 
             if model.companion == .duck && (model.pet.isResting || careScene == .rest) {
                 PropSprite(prop: .nest, size: 66)
-                    .offset(y: 32)
+                    .offset(y: 24)
                     .allowsHitTesting(false)
             }
 
@@ -517,6 +517,7 @@ struct ByteView: View {
                 if reduceMotion {
                     // A static expression and brief feedback still complete every action.
                     carePhase = 1
+                    if companion == .duck { applyDuckPose(action, phase: 1) }
                     try await pause(0.25)
                 } else {
                     switch action {
