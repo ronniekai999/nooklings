@@ -245,6 +245,7 @@ final class CareModelTests: XCTestCase {
                         frames.append(data)
                         if phase == 1, let directory = ProcessInfo.processInfo.environment["NOOKLINGS_SNAPSHOT_DIRECTORY"] {
                             let url = URL(fileURLWithPath: directory)
+                                .appendingPathComponent(reduced ? "care-reduced-motion" : "care-normal", isDirectory: true)
                             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
                             try data.write(to: url.appendingPathComponent("\(companion.rawValue)-\(action.rawValue)\(reduced ? "-reduced-motion" : "").png"))
                         }

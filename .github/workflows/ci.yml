@@ -48,6 +48,22 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: companion-previews
-          path: .artifacts/companion-previews/
+          path: .artifacts/companion-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload native care previews
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: care-previews
+          path: .artifacts/companion-previews/care-normal/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload native reduced-motion care previews
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: care-previews-reduced-motion
+          path: .artifacts/companion-previews/care-reduced-motion/
           if-no-files-found: warn
           retention-days: 7
