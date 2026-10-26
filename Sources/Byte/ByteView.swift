@@ -267,8 +267,8 @@ struct ByteView: View {
         .background(.regularMaterial, in: Capsule())
         .overlay(Capsule().stroke(accent.opacity(0.25), lineWidth: 1))
         .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
-        .opacity(showActions && !model.chatOpen ? 1 : 0)
-        .allowsHitTesting(showActions && !model.chatOpen)
+        .opacity(showActions && !model.chatOpen && careScene == nil ? 1 : 0)
+        .allowsHitTesting(showActions && !model.chatOpen && careScene == nil)
         .onHover { hoverBar = $0; updateActions() }
         .offset(y: 13)
     }
