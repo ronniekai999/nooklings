@@ -216,11 +216,10 @@ final class CareModelTests: XCTestCase {
                                      mood: mood, phase: 1, isBusy: true, onCare: { _ in })
                 let view = VStack(spacing: 8) {
                     Text(action.title(for: .duck)).font(.headline)
-                    scene.habitat
+                    scene.habitat(reducingMotion: reduced)
                 }
                 .padding(16).frame(width: 370).background(Color(white: 0.97))
                 .environment(\.colorScheme, .light)
-                .environment(\.accessibilityReduceMotion, reduced)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
                 let image = try XCTUnwrap(renderer.cgImage, action.rawValue)

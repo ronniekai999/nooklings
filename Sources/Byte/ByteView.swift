@@ -373,6 +373,7 @@ struct ByteView: View {
         isBusy = true; showHappy = true
         Task { @MainActor in
             for step in 0..<6 {
+                guard !reduceMotion, model.companion == .duck else { break }
                 withAnimation(.easeInOut(duration: 0.16)) {
                     swimX = step.isMultiple(of: 2) ? -7 : 7
                     breachTilt = step.isMultiple(of: 2) ? -7 : 7
@@ -381,7 +382,7 @@ struct ByteView: View {
                 try? await Task.sleep(nanoseconds: 170_000_000)
             }
             withAnimation(.easeOut(duration: 0.2)) { swimX = 0; breachTilt = 0; breachOffset = 0 }
-            if soundsOn { SoundPlayer.shared.playCare(.affection, companion: .duck) }
+            if soundsOn && model.companion == .duck { SoundPlayer.shared.playCare(.affection, companion: .duck) }
             try? await Task.sleep(nanoseconds: 200_000_000)
             showHappy = false; isBusy = false
         }

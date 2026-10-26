@@ -285,7 +285,12 @@ final class ByteModel: ObservableObject {
 
     private func reaction(to action: CareAction) -> String {
         switch action {
-        case .meal, .snack: return "\(companion.name) loved those \(action.title(for: companion).lowercased())."
+        case .meal, .snack:
+            if companion == .duck {
+                return action == .snack ? "Pea-sized snack. Duck-sized delight."
+                    : "Nibble, nibble… one very happy fluffball."
+            }
+            return "\(companion.name) loved those \(action.title(for: companion).lowercased())."
         case .water:
             switch companion {
             case .trex: return "A big drink for a little dinosaur."

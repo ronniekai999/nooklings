@@ -30,7 +30,7 @@ struct DuckCarePose {
         case .rest:
             return Self(y: 5, scale: 0.96, propY: 32, propScale: 2.2)
         case .wake:
-            return Self(y: -4, tilt: -3, propY: 32, propScale: 2.2)
+            return Self(y: -4, tilt: -3, propX: 36, propY: -25, propScale: 0.75)
         case .affection:
             return Self(x: -3, y: 1, tilt: -9, scale: 1.03, propX: -19, propY: -30)
         }

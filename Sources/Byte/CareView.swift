@@ -13,10 +13,10 @@ struct CareView: View {
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
     private let duckSceneScale: CGFloat = 1.32 / 0.90
-    private var duckPose: DuckCarePose? {
+    private func duckPose(reducingMotion: Bool) -> DuckCarePose? {
         guard model.companion == .duck,
               let action = model.activeCare ?? (model.pet.isResting ? .rest : nil) else { return nil }
-        return DuckCarePose.frame(for: action, phase: reduceMotion ? 0 : phase)
+        return DuckCarePose.frame(for: action, phase: reducingMotion ? 0 : phase)
     }
 
     var body: some View {
@@ -104,9 +104,14 @@ struct CareView: View {
         }
     }
 
-    // Also rendered by the native care-animation previews.
     var habitat: some View {
-        ZStack(alignment: .topLeading) {
+        habitat(reducingMotion: reduceMotion)
+    }
+
+    // Explicit presentation input lets previews exercise the system's read-only setting.
+    func habitat(reducingMotion reduceMotion: Bool) -> some View {
+        let duckPose = self.duckPose(reducingMotion: reduceMotion)
+        return ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 20)
                 .fill(LinearGradient(colors: [accent.opacity(0.23), accent.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing))
             VStack(alignment: .leading, spacing: 4) {
