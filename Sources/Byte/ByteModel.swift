@@ -295,7 +295,7 @@ final class ByteModel: ObservableObject {
                 return action == .snack ? "Pea-sized snack. Duck-sized delight."
                     : "Nibble, nibble… one very happy fluffball."
             }
-            return "\(companion.name) loved those \(action.title(for: companion).lowercased())."
+            return "\(companion.name) loved the \(action.title(for: companion).lowercased())."
         case .water:
             switch companion {
             case .trex: return "A big drink for a little dinosaur."

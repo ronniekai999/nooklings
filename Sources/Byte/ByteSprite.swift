@@ -45,7 +45,7 @@ enum CompanionArtwork {
                   let source = CGImageSourceCreateWithURL(url as CFURL, nil),
                   let atlas = CGImageSourceCreateImageAtIndex(source, 0, nil) else { continue }
             let w = atlas.width / 3, h = atlas.height / 2
-            result[companion] = ByteSprite.Mood.allCases.compactMap { mood in
+            result[companion] = ByteSprite.Mood.allCases.compactMap { mood -> CGImage? in
                 // The baby atlases use full cells so ears, paws, fins, and tails
                 // stay intact. Crop before shifting to avoid sampling a neighbor.
                 let row = mood.rawValue / 3
@@ -66,7 +66,7 @@ enum CompanionArtwork {
                 guard let canvas = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
                                              bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-                canvas.draw(cell, in: CGRect(x: 0, y: -lowerRowShift, width: w, height: h))
+                canvas.draw(cell, in: CGRect(x: 0, y: -lowerRowShift, width: CGFloat(w), height: CGFloat(h)))
                 return canvas.makeImage()
             }
         }
