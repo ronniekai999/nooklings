@@ -46,36 +46,28 @@ enum CompanionArtwork {
                   let atlas = CGImageSourceCreateImageAtIndex(source, 0, nil) else { continue }
             let w = atlas.width / 3, h = atlas.height / 2
             result[companion] = ByteSprite.Mood.allCases.compactMap { mood in
-                if companion == .duck {
-                    // Keep Puddle's crown tuft and webbed feet. Isolate the cell
-                    // before moving the lower poses down to the standing baseline.
-                    let row = mood.rawValue / 3
-                    guard let cell = atlas.cropping(to: CGRect(x: (mood.rawValue % 3) * w,
-                                                              y: row * h, width: w, height: h)) else { return nil }
-                    guard row == 1 else { return cell }
-                    guard let canvas = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
-                                                 bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
-                                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-                    canvas.draw(cell, in: CGRect(x: 0, y: -44, width: w, height: h))
-                    return canvas.makeImage()
-                }
-                // Discard the empty top/bottom gutter, keeping all poses on the same canvas.
-                // The second row's generated poses sit slightly higher. Match the
-                // standing baseline so expressions don't jump during a bite or sip.
-                let lowerRowInset: Int
-                switch companion {
-                case .trex: lowerRowInset = 9
-                case .dolphin: lowerRowInset = -7
-                case .dog: lowerRowInset = -7
-                case .cat: lowerRowInset = 18
-                case .panda: lowerRowInset = 10
-                case .duck: lowerRowInset = 0 // Uses the full-cell path above.
-                }
+                // The baby atlases use full cells so ears, paws, fins, and tails
+                // stay intact. Crop before shifting to avoid sampling a neighbor.
                 let row = mood.rawValue / 3
-                let rect = CGRect(x: (mood.rawValue % 3) * w,
-                                  y: row * h + (row == 0 ? 40 : lowerRowInset),
-                                  width: w, height: h - 70)
-                return atlas.cropping(to: rect)
+                guard let cell = atlas.cropping(to: CGRect(x: (mood.rawValue % 3) * w,
+                                                          y: row * h, width: w, height: h)) else { return nil }
+                guard row == 1 else { return cell }
+                // Match the lower poses to the standing baseline in each bundled atlas.
+                // Each shift stays inside the isolated cell's transparent bottom margin.
+                let lowerRowShift: CGFloat
+                switch companion {
+                case .trex: lowerRowShift = 77
+                case .dolphin: lowerRowShift = 45
+                case .dog: lowerRowShift = 65
+                case .cat: lowerRowShift = 66
+                case .panda: lowerRowShift = 70
+                case .duck: lowerRowShift = 44
+                }
+                guard let canvas = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
+                                             bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+                canvas.draw(cell, in: CGRect(x: 0, y: -lowerRowShift, width: w, height: h))
+                return canvas.makeImage()
             }
         }
         return result

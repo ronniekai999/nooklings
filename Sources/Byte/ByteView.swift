@@ -529,7 +529,8 @@ struct ByteView: View {
                 } else {
                     switch action {
                     case .meal, .snack:
-                        withAnimation(.easeOut(duration: 0.4)) { propX = -35; propY = companion == .trex || companion == .dolphin ? -6 : 26 }
+                        // The baby eating poses lower their mouths toward the same feeding height.
+                        withAnimation(.easeOut(duration: 0.4)) { propX = -35; propY = 26 }
                         try await pause(0.4)
                         for bite in 1...4 {
                             carePhase = bite
