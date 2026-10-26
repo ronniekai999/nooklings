@@ -216,12 +216,15 @@ struct PropSprite: View {
             ZStack {
                 Ellipse().fill(.brown.gradient).frame(width: 39, height: 18).offset(y: 5)
                 Ellipse().fill(Color(red: 0.30, green: 0.22, blue: 0.12)).frame(width: 29, height: 11).offset(y: 2)
-                ForEach(0..<7) { index in
-                    Capsule().fill(index.isMultiple(of: 2) ? Color.orange.opacity(0.65) : Color.yellow.opacity(0.65))
-                        .frame(width: 18, height: 2)
-                        .rotationEffect(.degrees(Double(index) * 23 - 65))
-                        .offset(x: CGFloat(index - 3) * 4, y: index.isMultiple(of: 2) ? 9 : 11)
+                ZStack {
+                    ForEach(0..<7) { index in
+                        Capsule().fill(index.isMultiple(of: 2) ? Color.orange.opacity(0.65) : Color.yellow.opacity(0.65))
+                            .frame(width: 18, height: 2)
+                            .rotationEffect(.degrees(Double(index) * 23 - 65))
+                            .offset(x: CGFloat(index - 3) * 4, y: index.isMultiple(of: 2) ? 4 : 6)
+                    }
                 }
+                .frame(width: 39, height: 18).clipShape(Ellipse()).offset(y: 5)
                 Image(systemName: "leaf.fill").font(.system(size: 12)).foregroundStyle(.green.gradient)
                     .rotationEffect(.degrees(-30)).offset(x: -14, y: -2)
             }

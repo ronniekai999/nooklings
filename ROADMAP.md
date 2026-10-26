@@ -1,10 +1,10 @@
 # Nooklings roadmap
 
-Updated: October 18, 2026
+Updated: October 26, 2026
 
 ## Implemented
 
-- [x] Five lifelike companions: Byte, Ripple, Biscuit, Miso, and Bao
+- [x] Six lifelike companions: Byte, Ripple, Biscuit, Miso, Bao, and Puddle
 - [x] Six expressions, species-specific care animations, sounds, and idle tricks
 - [x] Individual needs, food, hydration, play, timed rest, and optional check-ins
 - [x] Care dashboard, separate pet histories, and reduced-motion care

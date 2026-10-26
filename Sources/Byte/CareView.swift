@@ -148,7 +148,7 @@ struct CareView: View {
                 HStack {
                     Text(model.companion.personality).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
-                    Text("\(model.pet.careCount) care moments").lineLimit(1)
+                    Text(model.pet.careCount == 1 ? "1 care moment" : "\(model.pet.careCount) care moments").lineLimit(1)
                 }.font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
             }.padding(14)
         }
