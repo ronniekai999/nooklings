@@ -62,6 +62,35 @@ enum CareProp {
     }
 }
 
+/// Mouth and refresh anchors shared by the notch and the larger care habitat.
+enum CarePropPlacement {
+    /// Returns a prop center in the notch sprite's 0.90 scale coordinates.
+    /// Larger scenes scale the point with the animal. Puddle uses its full duck pose instead.
+    static func point(for action: CareAction, companion: Companion) -> CGPoint? {
+        switch action {
+        case .meal, .snack:
+            switch companion {
+            case .trex: return CGPoint(x: -22, y: 35)
+            case .dolphin: return CGPoint(x: -28, y: 20)
+            case .dog: return CGPoint(x: -22, y: action == .meal ? 44 : 38)
+            case .cat: return CGPoint(x: -22, y: action == .snack ? 40 : 34)
+            case .panda: return CGPoint(x: -21, y: 33)
+            case .duck: return nil
+            }
+        case .water:
+            switch companion {
+            case .trex: return CGPoint(x: -24, y: 43)
+            case .dolphin: return CGPoint(x: 0, y: 8)
+            case .dog: return CGPoint(x: -21, y: 44)
+            case .cat: return CGPoint(x: -20, y: 44)
+            case .panda: return CGPoint(x: -22, y: 44)
+            case .duck: return nil
+            }
+        default: return nil
+        }
+    }
+}
+
 struct PropSprite: View {
     let prop: CareProp
     var size: CGFloat = 32
