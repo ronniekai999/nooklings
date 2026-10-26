@@ -79,8 +79,50 @@ final class PetCareTests: XCTestCase {
         XCTAssertEqual(dino.energy, 62)
         XCTAssertEqual(panda.energy, 70)
         XCTAssertNotEqual(Companion.dolphin.hydrationLabel, Companion.dog.hydrationLabel)
-        XCTAssertEqual(Set(Companion.allCases.map(\.game)).count, 5)
-        XCTAssertEqual(Set(Companion.allCases.map(\.hydrationAction)).count, 5)
+        XCTAssertEqual(Set(Companion.allCases.map(\.game)).count, Companion.allCases.count)
+        XCTAssertEqual(Set(Companion.allCases.map(\.hydrationAction)).count, Companion.allCases.count)
+    }
+
+    func testPuddleRoutineIncludesForagingAndOfflineNestRecovery() throws {
+        var pet = PetState(now: start)
+        pet.hunger = 30; pet.thirst = 30; pet.energy = 60; pet.happiness = 20
+        XCTAssertTrue(pet.perform(.meal, companion: .duck, at: start))
+        XCTAssertEqual(pet.hunger, 59)
+        XCTAssertTrue(pet.perform(.snack, companion: .duck, at: start))
+        XCTAssertEqual(pet.hunger, 72)
+        XCTAssertTrue(pet.perform(.water, companion: .duck, at: start))
+        XCTAssertEqual(pet.thirst, 65)
+        XCTAssertEqual(pet.happiness, 41, "Bill rinses also make Puddle happy")
+        XCTAssertTrue(pet.perform(.play, companion: .duck, at: start))
+        XCTAssertEqual(pet.energy, 49)
+        XCTAssertEqual(pet.thirst, 61)
+        XCTAssertTrue(pet.perform(.explore, companion: .duck, at: start))
+        XCTAssertEqual(pet.hunger, 78, "Duckweed foraging provides a small meal bonus")
+        XCTAssertEqual(pet.happiness, 86)
+        XCTAssertEqual(pet.energy, 43)
+        XCTAssertTrue(pet.perform(.rest, companion: .duck, at: start))
+        XCTAssertEqual(pet.energy, 43, "The nest does not award energy upfront")
+        XCTAssertFalse(pet.perform(.explore, companion: .duck, at: start))
+        var loaded = try JSONDecoder().decode(PetState.self, from: JSONEncoder().encode(pet))
+        loaded.advance(to: start.addingTimeInterval(240), companion: .duck)
+        XCTAssertFalse(loaded.isResting)
+        XCTAssertEqual(loaded.energy, 91, accuracy: 0.001)
+        XCTAssertEqual(loaded.careCount, 6)
+        XCTAssertEqual(loaded.recentCare.first?.action, .rest)
+    }
+
+    func testDuckweedBonusIsBoundedAndStillRequiresEnoughEnergyAndWater() {
+        var pet = PetState(now: start)
+        pet.hunger = 99; pet.happiness = 97; pet.energy = 30; pet.thirst = 30
+        XCTAssertTrue(pet.perform(.explore, companion: .duck, at: start))
+        XCTAssertEqual(pet.hunger, 100)
+        XCTAssertEqual(pet.happiness, 100)
+        XCTAssertEqual(pet.energy, 24)
+        pet.thirst = 19
+        XCTAssertFalse(pet.perform(.explore, companion: .duck, at: start))
+        pet.thirst = 40; pet.energy = 10
+        XCTAssertFalse(pet.perform(.explore, companion: .duck, at: start))
+        XCTAssertEqual(pet.careCount, 1)
     }
 
     func testNeedsGatePlayAndCapFood() {
@@ -136,7 +178,7 @@ final class PetCareTests: XCTestCase {
         XCTAssertEqual(loaded.recentCare.first?.action, .affection)
     }
 
-    func testAllThirtyExpressionsAreBundled() {
+    func testEveryCompanionExpressionIsBundled() {
         for companion in Companion.allCases {
             for mood in ByteSprite.Mood.allCases {
                 let image = CompanionArtwork.frame(companion, mood: mood)

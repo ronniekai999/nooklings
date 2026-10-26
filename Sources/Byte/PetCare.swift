@@ -125,9 +125,9 @@ struct PetState: Codable {
             hunger += companion.mealGain; happiness += 6
             if companion == .dolphin { thirst += 8 } // Ripple also gets moisture from fish.
         case .snack: hunger += companion.snackGain; happiness += 8
-        case .water: thirst += companion.waterGain; happiness += companion == .dolphin ? 8 : 4
-        case .play: energy -= companion.playCost; thirst -= companion == .dolphin ? 2 : 6; happiness += companion.playJoy
-        case .explore: energy -= 6; thirst -= 2; happiness += 16
+        case .water: thirst += companion.waterGain; happiness += companion.waterJoy
+        case .play: energy -= companion.playCost; thirst -= companion.playWaterCost; happiness += companion.playJoy
+        case .explore: energy -= 6; thirst -= 2; happiness += 16; hunger += companion.forageGain
         case .rest: restingUntil = now.addingTimeInterval(companion.napMinutes * 60)
         case .wake: restingUntil = nil
         case .affection: happiness += 8

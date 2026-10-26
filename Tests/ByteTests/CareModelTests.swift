@@ -165,6 +165,80 @@ final class CareModelTests: XCTestCase {
     }
 
     @MainActor
+    func testPuddleKeepsIndependentCareAndRestWithoutResettingExistingFriends() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let model = f.model()
+        let existing = Companion.allCases.filter { $0 != .duck }
+        for (index, companion) in existing.enumerated() {
+            XCTAssertTrue(model.selectCompanion(companion))
+            model.pet.hunger = Double(30 + index)
+        }
+        XCTAssertTrue(model.selectCompanion(.duck))
+        model.pet.hunger = 40
+        let cancelled = try XCTUnwrap(model.beginCare(.explore))
+        XCTAssertFalse(model.selectCompanion(.trex), "Keep care attached to the duck until it settles")
+        model.cancelCare(cancelled)
+        model.completeCare(cancelled)
+        XCTAssertEqual(model.pet.hunger, 40)
+        let completed = try XCTUnwrap(model.beginCare(.explore))
+        model.completeCare(completed)
+        model.completeCare(completed)
+        XCTAssertEqual(model.pet.hunger, 46)
+        XCTAssertEqual(model.pet.careCount, 1)
+        model.completeCare(try XCTUnwrap(model.beginCare(.rest)))
+        model.prepareForTermination()
+        let loaded = f.model()
+        XCTAssertEqual(loaded.companion, .duck)
+        XCTAssertEqual(loaded.pet.hunger, 46)
+        XCTAssertEqual(loaded.pet.careCount, 2)
+        XCTAssertTrue(loaded.pet.isResting)
+        XCTAssertEqual(loaded.pet.restingUntil, f.start.addingTimeInterval(240))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: f.root.appendingPathComponent("pet-duck.json").path))
+        for (index, companion) in existing.enumerated() {
+            XCTAssertTrue(loaded.selectCompanion(companion))
+            XCTAssertEqual(loaded.pet.hunger, Double(30 + index), companion.name)
+        }
+    }
+
+    @MainActor
+    func testPuddleCareScenesRenderWithAndWithoutReducedMotion() throws {
+        let f = try CareFixture(); defer { f.clean() }
+        let model = f.model()
+        XCTAssertTrue(model.selectCompanion(.duck))
+        let scenes: [(CareAction, ByteSprite.Mood)] = [(.meal, .eating), (.snack, .eating), (.water, .drinking),
+            (.play, .happy), (.explore, .eating), (.rest, .sleeping), (.wake, .neutral), (.affection, .happy)]
+        for (action, mood) in scenes {
+            model.pet = PetState(now: f.start)
+            if action == .wake { model.pet.restingUntil = f.start.addingTimeInterval(240) }
+            let token = try XCTUnwrap(model.beginCare(action))
+            for reduced in [false, true] {
+                let scene = CareView(model: model, accent: Color(red: 0.88, green: 0.63, blue: 0.22),
+                                     mood: mood, phase: 1, isBusy: true, onCare: { _ in })
+                let view = VStack(spacing: 8) {
+                    Text(action.title(for: .duck)).font(.headline)
+                    scene.habitat
+                }
+                .padding(16).frame(width: 370).background(Color(white: 0.97))
+                .environment(\.colorScheme, .light)
+                .environment(\.accessibilityReduceMotion, reduced)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                let image = try XCTUnwrap(renderer.cgImage, action.rawValue)
+                XCTAssertEqual(image.width, 740)
+                let bitmap = NSBitmapImageRep(cgImage: image)
+                let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                XCTAssertGreaterThan(data.count, 1000)
+                if let directory = ProcessInfo.processInfo.environment["NOOKLINGS_SNAPSHOT_DIRECTORY"] {
+                    let url = URL(fileURLWithPath: directory)
+                    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                    try data.write(to: url.appendingPathComponent("duck-\(action.rawValue)\(reduced ? "-reduced-motion" : "").png"))
+                }
+            }
+            model.cancelCare(token)
+        }
+    }
+
+    @MainActor
     func testSwitchingPreservesIndependentNeedsAndRestoresSelection() throws {
         let f = try CareFixture(); defer { f.clean() }
         let model = f.model()

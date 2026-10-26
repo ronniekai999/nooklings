@@ -59,6 +59,7 @@ struct ByteView: View {
         if model.pet.isResting || careScene == .rest { return .sleeping }
         if careScene == .meal || careScene == .snack { return carePhase.isMultiple(of: 2) ? .happy : .eating }
         if careScene == .water { return carePhase.isMultiple(of: 2) ? .neutral : .drinking }
+        if model.companion == .duck && careScene == .explore { return carePhase.isMultiple(of: 2) ? .thinking : .eating }
         if careScene == .play || careScene == .explore || careScene == .affection { return .happy }
         if model.isThinking || model.searching { return .thinking }
         if showHappy { return .happy }
@@ -153,6 +154,12 @@ struct ByteView: View {
                 .offset(y: 18)
                 .allowsHitTesting(false)
 
+            if model.companion == .duck && (model.pet.isResting || careScene == .rest) {
+                PropSprite(prop: .nest, size: 66)
+                    .offset(y: 32)
+                    .allowsHitTesting(false)
+            }
+
             ByteSprite(scale: 0.90, mood: mood, companion: model.companion)
                 .scaleEffect(breachScale)
                 .rotationEffect(.degrees(breachTilt))
@@ -206,7 +213,7 @@ struct ByteView: View {
                 .focusable()
                 .onKeyPress(keys: [.return, .space]) { _ in model.toggleChat(); return .handled }
 
-            if let action = careScene {
+            if let action = careScene, !(model.companion == .duck && action == .rest) {
                 PropSprite(prop: .object(for: action, companion: model.companion), size: 30)
                     .scaleEffect(propScale)
                     .rotationEffect(.degrees(propRotation))
@@ -334,7 +341,9 @@ struct ByteView: View {
     }
 
     private func poke() {
-        if !reduceMotion && !model.pet.isResting { breach() }
+        if !reduceMotion && !model.pet.isResting {
+            if model.companion == .duck { waddle() } else { breach() }
+        }
         model.toggleChat()
     }
 
@@ -349,11 +358,33 @@ struct ByteView: View {
     /// Pick a random behaviour (skipping whatever ran last so it feels organic).
     private func randomMove() {
         guard !isBusy, !model.pet.isResting, model.activeCare == nil, !reduceMotion else { return }
-        let moves: [() -> Void] = [breach, swim, spin, wiggle, nod, dive, greet]
+        let moves: [() -> Void] = model.companion == .duck
+            ? [waddle, wiggle, nod, greet]
+            : [breach, swim, spin, wiggle, nod, dive, greet]
         var i = Int.random(in: 0..<moves.count)
         if i == lastMove { i = (i + 1) % moves.count }
         lastMove = i
         moves[i]()
+    }
+
+    /// Tiny alternating steps, with a happy peep at the end.
+    private func waddle() {
+        guard !isBusy else { return }
+        isBusy = true; showHappy = true
+        Task { @MainActor in
+            for step in 0..<6 {
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    swimX = step.isMultiple(of: 2) ? -7 : 7
+                    breachTilt = step.isMultiple(of: 2) ? -7 : 7
+                    breachOffset = step.isMultiple(of: 2) ? -2 : 0
+                }
+                try? await Task.sleep(nanoseconds: 170_000_000)
+            }
+            withAnimation(.easeOut(duration: 0.2)) { swimX = 0; breachTilt = 0; breachOffset = 0 }
+            if soundsOn { SoundPlayer.shared.playCare(.affection, companion: .duck) }
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            showHappy = false; isBusy = false
+        }
     }
 
     private func breach() {
@@ -494,8 +525,12 @@ struct ByteView: View {
                         for bite in 1...4 {
                             carePhase = bite
                             withAnimation(.easeInOut(duration: 0.17)) {
-                                breachOffset = bite.isMultiple(of: 2) ? 0 : 3
-                                propScale = CGFloat(max(0.15, 1 - Double(bite) * 0.20))
+                                if companion == .duck {
+                                    applyDuckPose(action, phase: bite)
+                                } else {
+                                    breachOffset = bite.isMultiple(of: 2) ? 0 : 3
+                                    propScale = CGFloat(max(0.15, 1 - Double(bite) * 0.20))
+                                }
                             }
                             try await pause(0.22)
                         }
@@ -506,8 +541,12 @@ struct ByteView: View {
                         for sip in 1...4 {
                             carePhase = sip
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                breachOffset = companion == .dolphin ? (sip.isMultiple(of: 2) ? 0 : -9) : 2
-                                propScale = sip.isMultiple(of: 2) ? 1 : 1.2
+                                if companion == .duck {
+                                    applyDuckPose(action, phase: sip)
+                                } else {
+                                    breachOffset = companion == .dolphin ? (sip.isMultiple(of: 2) ? 0 : -9) : 2
+                                    propScale = sip.isMultiple(of: 2) ? 1 : 1.2
+                                }
                                 propOpacity = sip.isMultiple(of: 2) ? 0.7 : 1
                             }
                             try await pause(0.3)
@@ -523,12 +562,16 @@ struct ByteView: View {
                             case .dog: breachScale = 0.97; breachTilt = 5
                             case .cat: breachScale = 0.94; breachOffset = 3
                             case .panda: breachOffset = 5; breachTilt = -3
+                            case .duck: applyDuckPose(action, phase: 0)
                             }
                         }
                         try await pause(0.7)
                     case .wake:
                         propOpacity = 0
-                        withAnimation(.easeOut(duration: 0.4)) { breachOffset = -4 }
+                        withAnimation(.easeOut(duration: 0.4)) {
+                            if companion == .duck { applyDuckPose(action, phase: 0) }
+                            else { breachOffset = -4 }
+                        }
                         try await pause(0.4)
                     case .affection:
                         propX = -15; propY = -20
@@ -540,6 +583,7 @@ struct ByteView: View {
                             case .dog: breachTilt = 15; breachScale = 1.03
                             case .cat: breachTilt = -7; swimX = -3
                             case .panda: breachTilt = -3; breachOffset = 3
+                            case .duck: applyDuckPose(action, phase: 0)
                             }
                         }
                         try await pause(0.8)
@@ -585,6 +629,8 @@ struct ByteView: View {
                     propX = up ? -35 : 25; propY = 30
                     propRotation += 100
                     swimX = up ? -6 : 6; breachTilt = gentle ? 0 : (up ? -13 : 13)
+                case .duck:
+                    applyDuckPose(gentle ? .explore : .play, phase: beat)
                 }
             }
             try await pause(0.3)
@@ -593,6 +639,12 @@ struct ByteView: View {
 
     private func pause(_ seconds: Double) async throws {
         try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+    }
+
+    private func applyDuckPose(_ action: CareAction, phase: Int) {
+        let pose = DuckCarePose.frame(for: action, phase: phase)
+        swimX = pose.x; breachOffset = pose.y; breachTilt = pose.tilt; breachScale = pose.scale
+        propX = pose.propX; propY = pose.propY; propScale = pose.propScale; propRotation = pose.propTilt
     }
 
     private func resetCareScene() {

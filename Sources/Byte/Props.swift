@@ -5,6 +5,7 @@ enum CareProp {
     case meat, fish, squid, dinner, biscuit, bamboo, apple
     case pool, splash, bowl, fountain, spring
     case target, hoop, ball, feather, log, scent, bubble, sunbeam, leaf, heart, moon
+    case crumble, peas, dabble, lilyPad, duckweed, nest
 
     static func food(for companion: Companion, snack: Bool) -> CareProp {
         switch companion {
@@ -13,6 +14,7 @@ enum CareProp {
         case .dog: return snack ? .biscuit : .dinner
         case .cat: return snack ? .dinner : .fish
         case .panda: return snack ? .apple : .bamboo
+        case .duck: return snack ? .peas : .crumble
         }
     }
     static func hydration(for companion: Companion) -> CareProp {
@@ -22,6 +24,7 @@ enum CareProp {
         case .dog: return .bowl
         case .cat: return .fountain
         case .panda: return .spring
+        case .duck: return .dabble
         }
     }
     static func toy(for companion: Companion, gentle: Bool) -> CareProp {
@@ -31,6 +34,7 @@ enum CareProp {
             case .dolphin: return .bubble
             case .cat: return .sunbeam
             case .panda: return .leaf
+            case .duck: return .duckweed
             }
         }
         switch companion {
@@ -39,6 +43,7 @@ enum CareProp {
         case .dog: return .ball
         case .cat: return .feather
         case .panda: return .log
+        case .duck: return .lilyPad
         }
     }
     static func object(for action: CareAction, companion: Companion) -> CareProp {
@@ -46,7 +51,8 @@ enum CareProp {
         case .meal, .snack: return food(for: companion, snack: action == .snack)
         case .water: return hydration(for: companion)
         case .play, .explore: return toy(for: companion, gentle: action == .explore)
-        case .rest, .wake: return .moon
+        case .rest: return companion == .duck ? .nest : .moon
+        case .wake: return .moon
         case .affection: return .heart
         }
     }
@@ -159,7 +165,72 @@ struct PropSprite: View {
         case .leaf: symbol("leaf.fill", colors: [.mint, .green])
         case .heart: symbol("heart.fill", colors: [.pink, .red])
         case .moon: symbol("moon.stars.fill", colors: [.white, .indigo.opacity(0.6)])
+        case .crumble:
+            ZStack {
+                Ellipse().fill(.orange.opacity(0.35).gradient).frame(width: 36, height: 19).offset(y: 4)
+                ForEach(0..<9) { index in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(LinearGradient(colors: [.yellow, .brown], startPoint: .top, endPoint: .bottom))
+                        .frame(width: 5, height: 4)
+                        .rotationEffect(.degrees(Double(index) * 37))
+                        .offset(x: CGFloat(index % 3 - 1) * 8, y: CGFloat(index / 3 - 1) * 5)
+                }
+            }
+        case .peas:
+            ZStack {
+                Ellipse().fill(.mint.opacity(0.25)).frame(width: 35, height: 15).offset(y: 8)
+                ForEach(0..<5) { index in
+                    Circle().fill(RadialGradient(colors: [.mint, .green], center: .topLeading, startRadius: 0, endRadius: 10))
+                        .frame(width: 11, height: 11)
+                        .offset(x: CGFloat(index % 3 - 1) * 11, y: CGFloat(index / 3) * 9 - 4)
+                }
+            }
+        case .dabble:
+            ZStack {
+                pond
+                Ellipse().stroke(.white.opacity(0.8), lineWidth: 1).frame(width: 26, height: 9)
+                Image(systemName: "drop.fill").font(.system(size: 10)).foregroundStyle(.cyan.gradient).offset(x: -11, y: -10)
+                Image(systemName: "drop.fill").font(.system(size: 7)).foregroundStyle(.blue.gradient).offset(x: 13, y: -7)
+            }
+        case .lilyPad:
+            ZStack {
+                pond
+                Ellipse().trim(from: 0.08, to: 0.95)
+                    .fill(LinearGradient(colors: [.mint, .green], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 30, height: 18).offset(y: -3)
+                Capsule().fill(.white.opacity(0.4)).frame(width: 14, height: 1).rotationEffect(.degrees(-15)).offset(y: -3)
+                Image(systemName: "camera.macro").font(.system(size: 12, weight: .semibold)).foregroundStyle(.pink).offset(x: 7, y: -12)
+            }
+        case .duckweed:
+            ZStack {
+                pond
+                ForEach(0..<5) { index in
+                    HStack(spacing: -2) {
+                        Ellipse().fill(.mint.gradient).frame(width: 7, height: 5).rotationEffect(.degrees(-25))
+                        Ellipse().fill(.green.gradient).frame(width: 6, height: 5).rotationEffect(.degrees(25))
+                    }
+                    .offset(x: CGFloat(index % 3 - 1) * 10, y: CGFloat(index / 3) * 7 - 4)
+                }
+            }
+        case .nest:
+            ZStack {
+                Ellipse().fill(.brown.gradient).frame(width: 39, height: 18).offset(y: 5)
+                Ellipse().fill(Color(red: 0.30, green: 0.22, blue: 0.12)).frame(width: 29, height: 11).offset(y: 2)
+                ForEach(0..<7) { index in
+                    Capsule().fill(index.isMultiple(of: 2) ? Color.orange.opacity(0.65) : Color.yellow.opacity(0.65))
+                        .frame(width: 18, height: 2)
+                        .rotationEffect(.degrees(Double(index) * 23 - 65))
+                        .offset(x: CGFloat(index - 3) * 4, y: index.isMultiple(of: 2) ? 9 : 11)
+                }
+                Image(systemName: "leaf.fill").font(.system(size: 12)).foregroundStyle(.green.gradient)
+                    .rotationEffect(.degrees(-30)).offset(x: -14, y: -2)
+            }
         }
+    }
+    private var pond: some View {
+        Ellipse().fill(LinearGradient(colors: [.mint.opacity(0.65), .cyan.opacity(0.8), .blue.opacity(0.6)],
+                                     startPoint: .top, endPoint: .bottom))
+            .frame(width: 40, height: 18).offset(y: 3)
     }
     private var bowl: some View {
         UnevenRoundedRectangle(topLeadingRadius: 3, bottomLeadingRadius: 12, bottomTrailingRadius: 12, topTrailingRadius: 3)

@@ -293,9 +293,17 @@ final class ByteModel: ObservableObject {
             case .dog: return "Bowl empty. Tail still wagging."
             case .cat: return "Fresh running water. Miso approves."
             case .panda: return "Cool spring water. Back to taking it slow."
+            case .duck: return "Dip, sip, happy peep. Puddle’s bill is sparkling."
             }
-        case .play, .explore: return "\(action.title(for: companion)) complete. \(companion.name) is beaming."
-        case .rest: return "\(companion.name) is resting. Energy will recover over \(Int(companion.napMinutes)) minutes."
+        case .play, .explore:
+            if companion == .duck {
+                return action == .explore ? "A little duckweed treasure! Happy tummy, happy Puddle."
+                    : "One lily pad, two tiny paddles, a very proud peep."
+            }
+            return "\(action.title(for: companion)) complete. \(companion.name) is beaming."
+        case .rest:
+            if companion == .duck { return "Bill tucked, fluff settled. Puddle’s four-minute nest snooze has begun." }
+            return "\(companion.name) is resting. Energy will recover over \(Int(companion.napMinutes)) minutes."
         case .wake: return "Welcome back, \(companion.name)."
         case .affection:
             switch companion {
@@ -304,6 +312,7 @@ final class ByteModel: ObservableObject {
             case .dog: return "Biscuit’s tail says it all."
             case .cat: return "A slow blink and a very contented purr."
             case .panda: return "Bao leans into your gentle pat."
+            case .duck: return "Puddle nestles into your hand. The tiniest, happiest peep."
             }
         }
     }

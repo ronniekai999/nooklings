@@ -36,6 +36,7 @@ final class SoundPlayer {
             case .dog: base = 360
             case .cat: base = 510
             case .panda: base = 260
+            case .duck: base = 960
             }
             let duration = 0.22
             let sampleRate = 44_100.0
@@ -43,6 +44,14 @@ final class SoundPlayer {
                 let t = Double(i) / sampleRate
                 let pitch = action == .water ? base * 1.4 : base
                 let envelope = sin(Double.pi * t / duration) * exp(-t * 9)
+                if companion == .duck {
+                    // A soft pair of rising baby-duck peeps, never a loud adult quack.
+                    let pulse = max(0, sin(2 * .pi * t / duration))
+                        + 0.7 * max(0, sin(2 * .pi * (t / duration - 0.5)))
+                    let phase = 2 * Double.pi * pitch * (t + 0.18 * t * t / duration)
+                    let quiet = action == .rest ? 0.08 : 0.20
+                    return (sin(phase) + 0.12 * sin(2 * phase)) * envelope * pulse * quiet
+                }
                 return (sin(2 * .pi * pitch * t) + 0.22 * sin(2 * .pi * pitch * 1.5 * t)) * envelope * 0.30
             }
             careSounds[key] = Self.wav(samples, sampleRate: Int(sampleRate))
