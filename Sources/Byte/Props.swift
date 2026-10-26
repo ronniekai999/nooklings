@@ -66,6 +66,7 @@ enum CareProp {
 enum CarePropPlacement {
     /// Returns a prop center in the notch sprite's 0.90 scale coordinates.
     /// Larger scenes scale the point with the animal. Puddle uses its full duck pose instead.
+    /// Other routines return nil to retain their existing choreography.
     static func point(for action: CareAction, companion: Companion) -> CGPoint? {
         switch action {
         case .meal, .snack:

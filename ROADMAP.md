@@ -4,7 +4,7 @@ Updated: October 26, 2026
 
 ## Implemented
 
-- [x] Six lifelike companions: Byte, Ripple, Biscuit, Miso, Bao, and Puddle
+- [x] Six lifelike baby companions: Niblet, Bubbles, Waffles, Mochi, Pebble, and Puddle
 - [x] Six expressions, species-specific care animations, sounds, and idle tricks
 - [x] Individual needs, food, hydration, play, timed rest, and optional check-ins
 - [x] Care dashboard, separate pet histories, and reduced-motion care

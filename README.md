@@ -6,7 +6,7 @@
 
 **Little friends. A cozier Mac.**
 
-Six lifelike virtual pets with animated care, their own daily routines, and optional Claude or ChatGPT chat.
+Six lifelike baby animals with animated care, their own daily routines, and optional Claude or ChatGPT chat.
 
 <br>
 
@@ -24,7 +24,7 @@ Six lifelike virtual pets with animated care, their own daily routines, and opti
 
 ---
 
-Nooklings gives your Mac a little companion to care for. Meet **Byte** the T-Rex, **Ripple** the dolphin, **Biscuit** the dog, **Miso** the cat, **Bao** the panda, and **Puddle** the duckling. Each friend has lifelike expressions, favorite foods, playful activities, and a cozy way to rest. Their needs, age, and care history are saved separately.
+Nooklings gives your Mac a little companion to care for. Meet **Niblet** the T-Rex hatchling, **Bubbles** the dolphin calf, **Waffles** the golden retriever puppy, **Mochi** the tabby kitten, **Pebble** the panda cub, and **Puddle** the duckling. Each baby has lifelike expressions, favorite foods, playful activities, and a cozy way to curl up for a nap. Their needs, age, and care history are saved separately.
 
 They live just below your Mac’s notch, or wherever you drag them. When you want help with a question, an image, or web research, open the optional Claude or ChatGPT panel. Nooklings also works on Macs without a notch.
 
@@ -41,26 +41,28 @@ Click to chat, or press **⌃⌥Space** from any app. Hover to care. Drag to mak
 
 <table>
 <tr>
-<td align="center" width="33%"><img src="docs/assets/companions/trex.png" width="160" alt="Byte, a lifelike green T-Rex"><br><strong>Byte</strong><br>T-Rex<br><em>Small arms. Big heart.</em></td>
-<td align="center" width="33%"><img src="docs/assets/companions/dolphin.png" width="160" alt="Ripple, a silver bottlenose dolphin"><br><strong>Ripple</strong><br>Dolphin<br><em>A little wave of wonder.</em></td>
-<td align="center" width="33%"><img src="docs/assets/companions/dog.png" width="160" alt="Biscuit, a golden retriever"><br><strong>Biscuit</strong><br>Golden retriever<br><em>Your golden-hour best friend.</em></td>
+<td align="center" width="33%"><img src="docs/assets/companions/trex.png" width="160" alt="Niblet, a round green T-Rex hatchling with big curious eyes and tiny arms"><br><strong>Niblet</strong><br>T-Rex hatchling<br><em>Tiny teeth. Giant cuddles.</em></td>
+<td align="center" width="33%"><img src="docs/assets/companions/dolphin.png" width="160" alt="Bubbles, a silver bottlenose dolphin calf with little flippers"><br><strong>Bubbles</strong><br>Dolphin calf<br><em>Little flippers. Big wonder.</em></td>
+<td align="center" width="33%"><img src="docs/assets/companions/dog.png" width="160" alt="Waffles, a fluffy golden retriever puppy with floppy ears and soft paws"><br><strong>Waffles</strong><br>Golden retriever puppy<br><em>Little paws. Whole-heart wags.</em></td>
 </tr>
 <tr>
-<td align="center" width="33%"><img src="docs/assets/companions/cat.png" width="160" alt="Miso, an orange tabby cat"><br><strong>Miso</strong><br>Tabby cat<br><em>Curiosity, with a side of mischief.</em></td>
-<td align="center" width="33%"><img src="docs/assets/companions/panda.png" width="160" alt="Bao, a giant panda"><br><strong>Bao</strong><br>Giant panda<br><em>Slow mornings. Happy tumbles.</em></td>
+<td align="center" width="33%"><img src="docs/assets/companions/cat.png" width="160" alt="Mochi, a tiny orange tabby kitten with fuzzy stripes and cream mittens"><br><strong>Mochi</strong><br>Tabby kitten<br><em>Pocket-sized purrs.</em></td>
+<td align="center" width="33%"><img src="docs/assets/companions/panda.png" width="160" alt="Pebble, a fluffy panda cub with round ears and little paws"><br><strong>Pebble</strong><br>Giant panda cub<br><em>A little fluff. A lot of hugs.</em></td>
 <td align="center" width="33%"><img src="docs/assets/companions/duck.png" width="160" alt="Puddle, a fluffy yellow Pekin duckling with tiny wings and orange webbed feet"><br><strong>Puddle</strong><br>Pekin duckling<br><em>Tiny waddles. Big feelings.</em></td>
 </tr>
 </table>
 
 Choose a friend from **Care**, available on the hover bar or right-click menu. See the [companion guide](docs/COMPANIONS.md) for their care routines. Your current companion stays selected on upgrade, and your original `pet.json` stays intact. Each friend’s needs continue to advance with elapsed time when you return to them.
 
+Already caring for a Nookling? Byte is now **Niblet**, Ripple is **Bubbles**, Biscuit is **Waffles**, Miso is **Mochi**, and Bao is **Pebble**. Their new baby faces and names carry forward the same needs, age, nap progress, and care history. Puddle keeps the name and duckling look you know.
+
 | Companion | Food & treat | Hydration / refresh | Play & gentle activity | Rest |
 | --- | --- | --- | --- | --- |
-| **Byte · T-Rex** | Prime bites · turkey morsels | Watering hole | Stomp chase · scent trail | 5-minute nest nap |
-| **Ripple · dolphin** | Fish school · squid snack | Splash refresh for skin freshness; fish also restores moisture | Hoop dive · bubble chase | 4-minute quiet drift |
-| **Biscuit · dog** | Dinner bowl · crunchy biscuit | Refilled water bowl | Fetch · sniff safari | 5-minute cozy nap |
-| **Miso · cat** | Salmon supper · chicken nibbles | Fresh drinking fountain | Feather pounce · sunbeam chase | 3-minute catnap |
-| **Bao · panda** | Bamboo buffet · apple slices | Forest spring | Bamboo roll · leaf puzzle | 6-minute bamboo snooze |
+| **Niblet · hatchling** | Hatchling bites · turkey morsels | Watering hole | Stomp chase · scent trail | 5-minute nest nap |
+| **Bubbles · calf** | Little fish bites · squid snack | Splash refresh for skin freshness; fish also restores moisture | Hoop dive · bubble chase | 4-minute quiet drift |
+| **Waffles · puppy** | Puppy supper · crunchy biscuit | Refilled water bowl | Fetch · sniff safari | 5-minute cozy nap |
+| **Mochi · kitten** | Kitten salmon · chicken nibbles | Fresh drinking fountain | Feather pounce · sunbeam chase | 3-minute catnap |
+| **Pebble · cub** | Tender bamboo · apple slices | Forest spring | Bamboo roll · leaf puzzle | 6-minute bamboo snooze |
 | **Puddle · duckling** | Duckling crumble · pea nibbles | Fresh-water bill dip & splash | Lily-pad paddle · duckweed hunt | 4-minute reed-nest snooze |
 
 Puddle brings happy waddles, little bill dips, quiet peeps, and a tucked-in sleeping pose. Duckweed hunts restore a little fullness as well as joy, and the cozy reed nest stays visible through the snooze.
@@ -68,7 +70,7 @@ Puddle brings happy waddles, little bill dips, quiet peeps, and a tucked-in slee
 Food and water replenish needs up to 100%; play uses energy. Hungry, thirsty, or exhausted friends ask for care before energetic games. Rest recovers energy over time, including while the app is closed; **Wake gently** keeps only the energy already recovered. These are playful virtual-pet routines. Care works locally and never requires AI credits.
 
 <p align="center">
-<img src="docs/assets/care-byte-dark.png" width="320" alt="Byte’s care dashboard in dark mode, with needs, meals, games, and rest">
+<img src="docs/assets/care-byte-dark.png" width="320" alt="Niblet’s care dashboard in dark mode, with all six babies, needs, meals, games, and rest">
 <img src="docs/assets/care-puddle-light.png" width="320" alt="Puddle’s care dashboard in light mode, with all six companions, duckling crumble, bill dips, lily-pad paddling, and nest rest">
 </p>
 
@@ -82,8 +84,8 @@ The quick controls and dashboard run the same animations and award care once at 
 
 ### 🐾 A little routine with your companion
 
-- **Six lifelike companions** with neutral, happy, thinking, eating, drinking, and sleeping expressions. Each animal brings its own care movements, quiet sound cues, and friendly reactions.
-- **A modern care dashboard** with fullness, hydration (freshness for Ripple), energy, joy, suggested actions, and recent moments. Each companion keeps separate needs, age, care history, and rest progress.
+- **Six lifelike baby companions** with neutral, happy, thinking, eating, drinking, and sleeping expressions. Each animal brings its own care movements, quiet sound cues, and friendly reactions.
+- **A modern care dashboard** with fullness, hydration (freshness for Bubbles), energy, joy, suggested actions, and recent moments. Each companion keeps separate needs, age, care history, and rest progress.
 - **Species-specific care** with two foods, two play activities, water or splash refreshes, affection, and timed naps. Smooth props and quiet synthesized cues replace the pixel objects. Reduce Motion keeps care functional with static expressions.
 - **Optional check-ins** and adjustable puns, from off to lots.
 - **A home under the notch**, or wherever you drag them. Their pinned position is remembered; a right-click resets it.
@@ -205,7 +207,7 @@ A few things to try:
 - “Explain the error in this screenshot.” Paste an image, then ask.
 - “Find the official documentation for this API.” Enable web search for source links.
 - “Help me simplify this Swift function.” Paste code and copy the suggested result.
-- Bring Bao a bamboo buffet, help Ripple splash, or take Puddle on a duckweed hunt.
+- Bring Pebble some tender bamboo, help Bubbles splash, or take Puddle on a duckweed hunt.
 
 The companion window sits **below** the physical notch cutout. Dragging your companion lets you choose a different spot on your display.
 
@@ -255,7 +257,7 @@ Nooklings stores conversations, pet state, and attachments under `~/.config/byte
 ```text
 ~/.config/byte/
 ├── history.json                 # Current conversation
-├── pet.json                     # Byte’s original needs, age, rest, and care history
+├── pet.json                     # Niblet’s needs and history, preserved from Byte
 ├── pet-{animal}.json            # Separate dolphin, dog, cat, panda, and duck state
 ├── archives/
 │   └── chat-<timestamp>-<UUID>.json

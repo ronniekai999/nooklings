@@ -10,6 +10,7 @@ The following installed-app pass remains necessary on a Mac.
 | --- | --- |
 | VoiceOver, all six companions | The pet is discoverable by name and status, with a chat action and named Open care action. Decorative selector art is silent. |
 | Care dashboard | Names, selected companion, needs percentages, unavailable-action reasons, rest progress, and care buttons are announced. Keyboard navigation reaches every action. |
+| Baby companion makeover | Select Niblet, Bubbles, Waffles, Mochi, and Pebble. Check each expression, meal, refresh, play, and nap for clipped ears, tails, paws, or fins. Confirm the new names are announced and existing selection, care history, and nap progress survive upgrade. |
 | Puddle care | Select the duckling from the second row. Complete each food, bill dip, paddle, forage, and nuzzle; check that props follow the bill and feet, and that the nest remains during sleep. Cancel before the payoff, switch pets, and relaunch to verify independent state. Check quiet peeps with Sound effects on/off. |
 | Chat keyboard access | The global shortcut opens chat from another app/Space and focuses the composer. Repeating it refocuses without closing or losing a draft. Tab reaches Settings, Saved chats, New chat, image controls, Send/Stop, and Resize chat. |
 | Shortcut recording | Change the key combination, restart, and verify it persists. Esc cancels recording. An unmodified key is rejected; a conflicting registration reports an error and retains the previous shortcut. Disabling unregisters it. |

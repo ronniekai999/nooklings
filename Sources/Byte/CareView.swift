@@ -144,7 +144,7 @@ struct CareView: View {
                             .scaleEffect(duckPose?.propScale ?? 1)
                             .rotationEffect(.degrees(duckPose?.propTilt ?? 0))
                             .offset(x: duckPose.map { $0.propX * sceneScale } ?? point.map { $0.x * sceneScale } ?? -58,
-                                    y: duckPose.map { $0.propY * sceneScale } ?? point.map { $0.y * sceneScale + bob } ?? (30 + bob))
+                                    y: duckPose.map { $0.propY * sceneScale } ?? point.map { $0.y * sceneScale + bob } ?? (!reduceMotion && phase.isMultiple(of: 2) ? 45 : 30))
                             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: phase)
                     }
                 }
